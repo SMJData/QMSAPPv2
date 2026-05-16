@@ -1,0 +1,1 @@
+self.__NEXT_FONT_MANIFEST='{"pages":{},"app":{"/workspaces/prodDwtime/src/app/layout":["static/media/f5271587012faf78-s.p.woff2","static/media/22a5144ee8d83bca-s.p.woff2"]},"appUsingSizeAdjust":true,"pagesUsingSizeAdjust":false}';
