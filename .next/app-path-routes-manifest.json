@@ -1,8 +1,0 @@
-{
-  "/api/downtime/route": "/api/downtime",
-  "/_not-found/page": "/_not-found",
-  "/api/logs/route": "/api/logs",
-  "/api/submit/route": "/api/submit",
-  "/api/jobs/route": "/api/jobs",
-  "/page": "/"
-}
