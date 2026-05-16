@@ -1,19 +1,15 @@
 @import "tailwindcss";
 
-:root {
-  --smj-navy: #004182;
-  --smj-navy-dark: #002d5c;
-  --smj-cyan: #00aeef;
-  --smj-navy-light: #f0f5ff;
+@theme {
+  --color-smj-navy:       #004182;
+  --color-smj-navy-dark:  #002d5c;
+  --color-smj-cyan:       #00aeef;
+  --color-smj-navy-light: #f0f5ff;
 
-  /* System font stack — no CDN, renders immediately.
-     iOS/macOS: SF Pro · Android: Roboto · Windows: Segoe UI */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-               "Helvetica Neue", Arial, sans-serif;
-
-  /* Monospace for job numbers / timestamps */
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono",
-               "Roboto Mono", Menlo, Monaco, Consolas, monospace;
+  --font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                      "Helvetica Neue", Arial, sans-serif;
+  --font-family-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono",
+                      "Roboto Mono", Menlo, Monaco, Consolas, monospace;
 }
 
 * {
@@ -24,12 +20,11 @@ html,
 body {
   height: 100%;
   background: #f1f5f9;
-  font-family: var(--font-sans);
+  font-family: var(--font-family-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Mobile-first: constrain to phone width on desktop */
 .app-shell {
   max-width: 430px;
   margin: 0 auto;
@@ -40,7 +35,6 @@ body {
   position: relative;
 }
 
-/* Tab bar safe area */
 .tab-bar {
   position: fixed;
   bottom: 0;
@@ -57,23 +51,15 @@ body {
   padding-bottom: 80px;
 }
 
-/* Smooth page transitions */
 .page-enter {
   animation: fadeSlideUp 0.2s ease both;
 }
 
 @keyframes fadeSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
 }
 
-/* Bottom sheet modal */
 .sheet-backdrop {
   position: fixed;
   inset: 0;
@@ -96,12 +82,12 @@ body {
 
 @keyframes fadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
 
 @keyframes slideUp {
   from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  to   { transform: translateY(0);    }
 }
 
 .sheet-handle {
@@ -112,21 +98,18 @@ body {
   margin: 8px auto 20px;
 }
 
-/* Input focus ring */
 input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: var(--smj-navy) !important;
+  border-color: #004182 !important;
   box-shadow: 0 0 0 3px rgba(0, 65, 130, 0.12);
 }
 
-/* Tap highlight */
 button {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar       { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
