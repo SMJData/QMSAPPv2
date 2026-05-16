@@ -1,3 +1,6 @@
+
+// BottomSheet.tsx - A React component that renders a bottom sheet overlay with a title and content area.
+
 "use client";
 
 import { useEffect } from "react";

@@ -1,3 +1,4 @@
+// TopBar.tsx - A React component that renders the top navigation bar for the production logger application, displaying the company logo, current shift, and date.
 "use client";
 
 import { SMJLogo } from "./SMJLogo";

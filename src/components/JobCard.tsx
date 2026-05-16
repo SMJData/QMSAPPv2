@@ -1,3 +1,4 @@
+// JobCard.tsx - A React component that renders a card for a production job, displaying key details such as job number, description, brand, size, pack, target quantity, required due date, and release status. The card can be selected to view more details or perform actions related to the job.
 "use client";
 
 import { cn } from "@/lib/utils";

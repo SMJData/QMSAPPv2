@@ -1,3 +1,5 @@
+// JobsTab.tsx - A React component that displays a list of production jobs for a selected shift and line, with search and filtering capabilities. It allows users to select a job to view more details or log production data, and includes a refresh button to reload the job data from the server.
+
 "use client";
 
 import { useState, useMemo } from "react";

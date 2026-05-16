@@ -1,3 +1,4 @@
+// DowntimeTab.tsx - A React component that displays a list of downtime events for a specific shift and line, allows adding new downtime events through a bottom sheet form, and supports removing existing events. It also shows a summary of total downtime duration and the number of events logged.
 "use client";
 
 import { useState } from "react";

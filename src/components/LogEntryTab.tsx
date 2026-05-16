@@ -1,3 +1,5 @@
+// LogEntryTab.tsx - A React component that renders the log entry form for a selected production job, allowing users to input production quantities, notes, and supervisor name, and save the log to the server. If no job is selected, it prompts the user to select a job from the Jobs tab.
+
 "use client";
 
 import { useState } from "react";

@@ -1,3 +1,4 @@
+// SMJLogo.tsx - A React component that renders the S.M. Jaleel & Company logo as an SVG, with support for different color variants and customizable height.
 import { cn } from "@/lib/utils";
 
 interface SMJLogoProps {

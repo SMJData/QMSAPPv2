@@ -1,3 +1,5 @@
+// BottomTabBar.tsx - A React component that renders a bottom tab bar with icons and labels for navigating between different sections of the production logger application, such as Jobs, Log Entry, Downtime, and Summary. The active tab is highlighted, and clicking on a tab triggers a callback to change the active section.
+
 "use client";
 
 import { ClipboardList, FilePen, PauseCircle, BarChart3 } from "lucide-react";

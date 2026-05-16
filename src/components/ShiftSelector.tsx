@@ -1,4 +1,4 @@
-"use client";
+// ShiftSelector.tsx - A React component that allows users to select a shift (day or night) from a grid of buttons.
 
 import { Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";

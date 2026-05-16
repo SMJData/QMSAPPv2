@@ -1,3 +1,5 @@
+//SummaryTab.tsx - Displays a summary of the shift report with key metrics and details, and allows submission to the server.
+
 "use client";
 
 import { useState } from "react";
