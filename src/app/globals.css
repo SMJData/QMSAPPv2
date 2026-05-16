@@ -7,6 +7,9 @@
   --smj-navy-dark: #002d5c;
   --smj-cyan: #00aeef;
   --smj-navy-light: #f0f5ff;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), ui-monospace, monospace;
 }
 
 * {

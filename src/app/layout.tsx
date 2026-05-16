@@ -1,15 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const inter = Inter({
+  subsets:  ["latin"],
+  variable: "--font-inter",
+  display:  "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets:  ["latin"],
+  weight:   ["400", "500"],
+  variable: "--font-ibm-plex-mono",
+  display:  "swap",
 });
 
 export const metadata: Metadata = {
@@ -37,8 +40,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="en" className={`${inter.variable} ${ibmPlexMono.variable}`}>
+      <body className="antialiased">
         {children}
       </body>
     </html>
