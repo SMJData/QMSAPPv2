@@ -9,6 +9,7 @@ import { DowntimeTab } from "@/components/DowntimeTab";
 import { SummaryTab } from "@/components/SummaryTab";
 import type { Job, ShiftKey, ProductionLog, DowntimeEvent } from "@/types";
 import { PRODUCTION_LINES } from "@/lib/constants";
+import { useOfflineQueue, getCachedJobs, setCachedJobs } from "@/lib/useOfflineQueue";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<TabKey>("jobs");
@@ -19,7 +20,7 @@ export default function HomePage() {
   const [supervisorName, setSupervisorName] = useState("");
 
   // Job state
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useState<Job[]>(() => getCachedJobs<Job>());
   const [jobsLoading, setJobsLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
@@ -27,14 +28,20 @@ export default function HomePage() {
   const [productionLogs, setProductionLogs] = useState<ProductionLog[]>([]);
   const [downtimeEvents, setDowntimeEvents] = useState<DowntimeEvent[]>([]);
 
+  // Offline queue
+  const { online, syncing, pendingSync, syncOrQueue, drain } = useOfflineQueue();
+
   const loadJobs = useCallback(async () => {
     setJobsLoading(true);
     try {
       const res = await fetch("/api/jobs");
       const data = await res.json();
-      setJobs(data.jobs ?? []);
+      const fetched = data.jobs ?? [];
+      setJobs(fetched);
+      setCachedJobs(fetched); // cache for offline use
     } catch {
-      console.error("Failed to load jobs");
+      // Stay with whatever is already in state (cached jobs from localStorage)
+      console.error("Failed to load jobs — using cache");
     } finally {
       setJobsLoading(false);
     }
@@ -49,6 +56,11 @@ export default function HomePage() {
     const hour = new Date().getHours();
     setShift(hour >= 7 && hour < 19 ? "day" : "night");
   }, []);
+
+  // Try to drain queue whenever we come back online
+  useEffect(() => {
+    if (online && pendingSync > 0) drain();
+  }, [online, pendingSync, drain]);
 
   const handleJobSelect = (job: Job) => {
     setSelectedJob(job);
@@ -69,7 +81,6 @@ export default function HomePage() {
   };
 
   const handleSubmitSuccess = () => {
-    // Reset session after successful submission
     setTimeout(() => {
       setProductionLogs([]);
       setDowntimeEvents([]);
@@ -80,7 +91,7 @@ export default function HomePage() {
 
   return (
     <div className="app-shell shadow-xl">
-      <TopBar shift={shift} />
+      <TopBar shift={shift} pendingSync={pendingSync} syncing={syncing} />
 
       <div className="content-area">
         {activeTab === "jobs" && (
@@ -105,6 +116,7 @@ export default function HomePage() {
             onSupervisorChange={setSupervisorName}
             onGoToJobs={() => setActiveTab("jobs")}
             onLogSaved={handleLogSaved}
+            syncOrQueue={syncOrQueue}
           />
         )}
         {activeTab === "downtime" && (
@@ -115,6 +127,7 @@ export default function HomePage() {
             events={downtimeEvents}
             onEventAdded={handleEventAdded}
             onEventRemoved={handleEventRemoved}
+            syncOrQueue={syncOrQueue}
           />
         )}
         {activeTab === "summary" && (
@@ -125,6 +138,7 @@ export default function HomePage() {
             productionLogs={productionLogs}
             downtimeEvents={downtimeEvents}
             onSubmitSuccess={handleSubmitSuccess}
+            syncOrQueue={syncOrQueue}
           />
         )}
       </div>

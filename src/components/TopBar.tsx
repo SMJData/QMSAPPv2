@@ -1,38 +1,86 @@
-// TopBar.tsx - A React component that renders the top navigation bar for the production logger application, displaying the company logo, current shift, and date.
 "use client";
 
 import { SMJLogo } from "./SMJLogo";
 import type { ShiftKey } from "@/types";
 import { SHIFTS } from "@/lib/constants";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, Wifi, WifiOff, CloudUpload } from "lucide-react";
 import { format } from "date-fns";
+import { useEffect, useState } from "react";
 
 interface TopBarProps {
   shift: ShiftKey;
+  pendingSync?: number;
+  syncing?: boolean;
 }
 
-export function TopBar({ shift }: TopBarProps) {
+export function TopBar({ shift, pendingSync = 0, syncing = false }: TopBarProps) {
   const s = SHIFTS[shift];
   const today = format(new Date(), "EEE d MMM");
+  const [online, setOnline] = useState(true);
+
+  useEffect(() => {
+    setOnline(navigator.onLine);
+    const handleOnline  = () => setOnline(true);
+    const handleOffline = () => setOnline(false);
+    window.addEventListener("online",  handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online",  handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   return (
     <div className="bg-smj-navy px-4 pt-3 pb-2.5 text-white">
+      {/* Row 1: logo + shift */}
       <div className="flex items-center justify-between">
         <SMJLogo height={26} variant="white" />
         <div className="text-right">
           <div className="flex items-center gap-1 justify-end text-white/70 text-xs">
-            {shift === "day" ? (
-              <Sun size={11} />
-            ) : (
-              <Moon size={11} />
-            )}
+            {shift === "day" ? <Sun size={11} /> : <Moon size={11} />}
             <span>{s.label}</span>
           </div>
           <div className="text-white/50 text-[10px] mt-0.5">{today}</div>
         </div>
       </div>
-      <div className="text-[10px] text-white/50 mt-1 tracking-wide">
-        Production Logger · SMJ-02
+
+      {/* Row 2: app label + status pills */}
+      <div className="flex items-center justify-between mt-1.5">
+        <div className="text-[10px] text-white/50 tracking-wide">
+          Production Logger · SMJ-02
+        </div>
+
+        <div className="flex items-center gap-1.5">
+
+          {/* Pending / syncing badge */}
+          {syncing ? (
+            <div className="flex items-center gap-1 bg-blue-400/20 border border-blue-400/40 rounded-full px-2 py-0.5">
+              <CloudUpload size={10} className="text-blue-300 animate-pulse" />
+              <span className="text-blue-300 text-[10px] font-semibold">Syncing…</span>
+            </div>
+          ) : pendingSync > 0 ? (
+            <div className="flex items-center gap-1 bg-amber-400/20 border border-amber-400/40 rounded-full px-2 py-0.5">
+              <CloudUpload size={10} className="text-amber-300" />
+              <span className="text-amber-300 text-[10px] font-semibold">
+                {pendingSync} to sync
+              </span>
+            </div>
+          ) : null}
+
+          {/* Online / offline pill */}
+          {online ? (
+            <div className="flex items-center gap-1 bg-green-400/20 border border-green-400/40 rounded-full px-2 py-0.5">
+              <Wifi size={10} className="text-green-300" />
+              <span className="text-green-300 text-[10px] font-semibold">Online</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 bg-red-400/20 border border-red-400/40 rounded-full px-2 py-0.5">
+              <WifiOff size={10} className="text-red-300" />
+              <span className="text-red-300 text-[10px] font-semibold">Offline</span>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );

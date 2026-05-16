@@ -1,12 +1,11 @@
-//SummaryTab.tsx - Displays a summary of the shift report with key metrics and details, and allows submission to the server.
-
 "use client";
 
 import { useState } from "react";
-import { Send, CheckCircle2, BarChart3 } from "lucide-react";
+import { Send, CheckCircle2, BarChart3, CloudUpload } from "lucide-react";
 import { SHIFTS, getShiftDate } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { ProductionLog, DowntimeEvent, ShiftKey, ShiftReport } from "@/types";
+import type { useOfflineQueue } from "@/lib/useOfflineQueue";
 import { format } from "date-fns";
 
 interface SummaryTabProps {
@@ -16,6 +15,7 @@ interface SummaryTabProps {
   productionLogs: ProductionLog[];
   downtimeEvents: DowntimeEvent[];
   onSubmitSuccess: () => void;
+  syncOrQueue: ReturnType<typeof useOfflineQueue>["syncOrQueue"];
 }
 
 export function SummaryTab({
@@ -25,9 +25,11 @@ export function SummaryTab({
   productionLogs,
   downtimeEvents,
   onSubmitSuccess,
+  syncOrQueue,
 }: SummaryTabProps) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedOffline, setSubmittedOffline] = useState(false);
   const [error, setError] = useState("");
 
   const s = SHIFTS[shift];
@@ -66,35 +68,40 @@ export function SummaryTab({
       submittedAt: new Date().toISOString(),
     };
 
-    try {
-      const res = await fetch("/api/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(report),
-      });
-      if (!res.ok) throw new Error("Submit failed");
-      setSubmitted(true);
-      onSubmitSuccess();
-    } catch {
-      setError("Submission failed. Check your connection.");
-    } finally {
-      setSubmitting(false);
-    }
+    const { queued } = await syncOrQueue("/api/submit", "POST", report);
+
+    setSubmitting(false);
+    setSubmitted(true);
+    setSubmittedOffline(queued);
+    onSubmitSuccess();
   };
 
   if (submitted) {
     return (
       <div className="page-enter px-4 flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-          <CheckCircle2 size={36} className="text-green-600" />
+        <div className={cn(
+          "w-16 h-16 rounded-full flex items-center justify-center mb-4",
+          submittedOffline ? "bg-amber-100" : "bg-green-100"
+        )}>
+          {submittedOffline
+            ? <CloudUpload size={36} className="text-amber-600" />
+            : <CheckCircle2 size={36} className="text-green-600" />
+          }
         </div>
-        <h2 className="text-lg font-bold text-gray-900 mb-1">Report submitted!</h2>
+        <h2 className="text-lg font-bold text-gray-900 mb-1">
+          {submittedOffline ? "Saved offline!" : "Report submitted!"}
+        </h2>
         <p className="text-sm text-gray-500 mb-1">
           {s.label} · {format(new Date(), "d MMM yyyy")}
         </p>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-gray-400 mb-3">
           {totalProduced.toLocaleString()} cases · {line}
         </p>
+        {submittedOffline && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 max-w-xs">
+            Your report is queued and will sync automatically when you&apos;re back online.
+          </p>
+        )}
       </div>
     );
   }
@@ -139,9 +146,9 @@ export function SummaryTab({
 
       {/* Shift details */}
       <div className="bg-gray-50 rounded-xl border border-gray-200 divide-y divide-gray-200 mb-4">
-        <SumRow label="Shift" value={s.label} />
-        <SumRow label="Window" value={`${s.start} – ${s.end}`} />
-        <SumRow label="Line" value={line} />
+        <SumRow label="Shift"      value={s.label} />
+        <SumRow label="Window"     value={`${s.start} – ${s.end}`} />
+        <SumRow label="Line"       value={line} />
         <SumRow label="Supervisor" value={supervisorName || "—"} />
         {efficiency && <SumRow label="Yield rate" value={`${efficiency}%`} />}
       </div>
@@ -154,17 +161,10 @@ export function SummaryTab({
           </div>
           <div className="space-y-1.5 mb-4">
             {productionLogs.map((log, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-3 py-2"
-              >
+              <div key={i} className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-3 py-2">
                 <div>
-                  <div className="font-mono text-[11px] text-gray-400">
-                    {log.jobNum}
-                  </div>
-                  <div className="text-xs text-gray-700 truncate max-w-[180px]">
-                    {log.jobDescription}
-                  </div>
+                  <div className="font-mono text-[11px] text-gray-400">{log.jobNum}</div>
+                  <div className="text-xs text-gray-700 truncate max-w-[180px]">{log.jobDescription}</div>
                 </div>
                 <div className="text-sm font-semibold text-gray-900">
                   {log.casesProduced.toLocaleString()}
@@ -184,19 +184,12 @@ export function SummaryTab({
           </div>
           <div className="space-y-1.5 mb-4">
             {downtimeEvents.map((e, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-3 py-2"
-              >
+              <div key={i} className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-3 py-2">
                 <div>
                   <div className="text-xs font-semibold text-gray-700">{e.category}</div>
-                  <div className="text-[11px] text-gray-400">
-                    {e.startTime} – {e.endTime}
-                  </div>
+                  <div className="text-[11px] text-gray-400">{e.startTime} – {e.endTime}</div>
                 </div>
-                <div className="text-sm font-semibold text-amber-700">
-                  {e.durationMinutes} min
-                </div>
+                <div className="text-sm font-semibold text-amber-700">{e.durationMinutes} min</div>
               </div>
             ))}
           </div>

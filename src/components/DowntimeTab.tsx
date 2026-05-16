@@ -1,4 +1,3 @@
-// DowntimeTab.tsx - A React component that displays a list of downtime events for a specific shift and line, allows adding new downtime events through a bottom sheet form, and supports removing existing events. It also shows a summary of total downtime duration and the number of events logged.
 "use client";
 
 import { useState } from "react";
@@ -13,6 +12,7 @@ import {
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { DowntimeCategory, DowntimeEvent, ShiftKey } from "@/types";
+import type { useOfflineQueue } from "@/lib/useOfflineQueue";
 
 interface DowntimeTabProps {
   shift: ShiftKey;
@@ -21,6 +21,7 @@ interface DowntimeTabProps {
   events: DowntimeEvent[];
   onEventAdded: (event: DowntimeEvent) => void;
   onEventRemoved: (index: number) => void;
+  syncOrQueue: ReturnType<typeof useOfflineQueue>["syncOrQueue"];
 }
 
 export function DowntimeTab({
@@ -30,6 +31,7 @@ export function DowntimeTab({
   events,
   onEventAdded,
   onEventRemoved,
+  syncOrQueue,
 }: DowntimeTabProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [category, setCategory] = useState<DowntimeCategory>("Mechanical");
@@ -37,6 +39,7 @@ export function DowntimeTab({
   const [endTime, setEndTime] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savedOffline, setSavedOffline] = useState(false);
   const [error, setError] = useState("");
 
   const s = SHIFTS[shift];
@@ -46,14 +49,16 @@ export function DowntimeTab({
     setEndTime("");
     setDescription("");
     setError("");
+    setSavedOffline(false);
     setSheetOpen(true);
   };
 
   const handleSave = async () => {
     if (!startTime) { setError("Enter start time"); return; }
-    if (!endTime) { setError("Enter end time"); return; }
+    if (!endTime)   { setError("Enter end time");   return; }
     setError("");
     setSaving(true);
+    setSavedOffline(false);
 
     const event: DowntimeEvent = {
       shift,
@@ -67,20 +72,12 @@ export function DowntimeTab({
       supervisorName,
     };
 
-    try {
-      const res = await fetch("/api/downtime", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(event),
-      });
-      if (!res.ok) throw new Error("Save failed");
-      onEventAdded(event);
-      setSheetOpen(false);
-    } catch {
-      setError("Failed to save. Check connection.");
-    } finally {
-      setSaving(false);
-    }
+    const { queued } = await syncOrQueue("/api/downtime", "POST", event);
+
+    if (queued) setSavedOffline(true);
+    onEventAdded(event);
+    setSheetOpen(false);
+    setSaving(false);
   };
 
   const totalMins = events.reduce((a, e) => a + (e.durationMinutes ?? 0), 0);
@@ -92,6 +89,13 @@ export function DowntimeTab({
         <Clock size={14} className="shrink-0" />
         <span>{s.label} · {s.start} – {s.end}</span>
       </div>
+
+      {/* Offline notice */}
+      {savedOffline && (
+        <p className="text-amber-700 text-sm mb-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+          Saved offline — will sync automatically when online.
+        </p>
+      )}
 
       {/* Summary chip */}
       {events.length > 0 && (
@@ -128,24 +132,12 @@ export function DowntimeTab({
               text: "text-gray-700",
             };
             return (
-              <div
-                key={i}
-                className="border border-gray-200 rounded-xl p-3 bg-white"
-              >
+              <div key={i} className="border border-gray-200 rounded-xl p-3 bg-white">
                 <div className="flex items-center justify-between mb-2">
-                  <span
-                    className={cn(
-                      "text-[11px] font-semibold px-2 py-0.5 rounded-full",
-                      style.bg,
-                      style.text
-                    )}
-                  >
+                  <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full", style.bg, style.text)}>
                     {e.category}
                   </span>
-                  <button
-                    onClick={() => onEventRemoved(i)}
-                    className="text-red-400 hover:text-red-600 p-1"
-                  >
+                  <button onClick={() => onEventRemoved(i)} className="text-red-400 hover:text-red-600 p-1">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -158,9 +150,7 @@ export function DowntimeTab({
                   )}
                 </div>
                 {e.description && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    {e.description}
-                  </div>
+                  <div className="text-xs text-gray-500 mt-1">{e.description}</div>
                 )}
               </div>
             );
@@ -169,11 +159,7 @@ export function DowntimeTab({
       )}
 
       {/* Add downtime sheet */}
-      <BottomSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        title="Log downtime event"
-      >
+      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Log downtime event">
         <div className="space-y-3">
           <div>
             <label className="text-xs text-gray-500 block mb-1">Category</label>
@@ -225,10 +211,7 @@ export function DowntimeTab({
           <button
             onClick={handleSave}
             disabled={saving}
-            className={cn(
-              "w-full bg-smj-navy text-white rounded-xl py-3 text-sm font-semibold",
-              saving && "opacity-60"
-            )}
+            className={cn("w-full bg-smj-navy text-white rounded-xl py-3 text-sm font-semibold", saving && "opacity-60")}
           >
             {saving ? "Saving…" : "Save downtime"}
           </button>

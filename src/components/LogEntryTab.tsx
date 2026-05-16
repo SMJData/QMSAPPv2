@@ -1,13 +1,11 @@
-// LogEntryTab.tsx - A React component that renders the log entry form for a selected production job, allowing users to input production quantities, notes, and supervisor name, and save the log to the server. If no job is selected, it prompts the user to select a job from the Jobs tab.
-
 "use client";
 
 import { useState } from "react";
 import { ClipboardList, Clock, CheckCircle2 } from "lucide-react";
-import { SHIFTS } from "@/lib/constants";
+import { SHIFTS, getShiftDate } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Job, ShiftKey, ProductionLog } from "@/types";
-import { getShiftDate } from "@/lib/constants";
+import type { useOfflineQueue } from "@/lib/useOfflineQueue";
 
 interface LogEntryTabProps {
   selectedJob: Job | null;
@@ -17,6 +15,7 @@ interface LogEntryTabProps {
   onSupervisorChange: (name: string) => void;
   onGoToJobs: () => void;
   onLogSaved: (log: ProductionLog) => void;
+  syncOrQueue: ReturnType<typeof useOfflineQueue>["syncOrQueue"];
 }
 
 export function LogEntryTab({
@@ -27,11 +26,13 @@ export function LogEntryTab({
   onSupervisorChange,
   onGoToJobs,
   onLogSaved,
+  syncOrQueue,
 }: LogEntryTabProps) {
   const [casesProduced, setCasesProduced] = useState("");
   const [casesRejected, setCasesRejected] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savedOffline, setSavedOffline] = useState(false);
   const [error, setError] = useState("");
 
   const s = SHIFTS[shift];
@@ -64,6 +65,7 @@ export function LogEntryTab({
     }
     setError("");
     setSaving(true);
+    setSavedOffline(false);
 
     const log: ProductionLog = {
       jobNum: selectedJob.jobNum,
@@ -78,22 +80,19 @@ export function LogEntryTab({
       supervisorName,
     };
 
-    try {
-      const res = await fetch("/api/logs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(log),
-      });
-      if (!res.ok) throw new Error("Save failed");
+    const { queued, error: syncError } = await syncOrQueue("/api/logs", "POST", log);
+
+    if (syncError && !queued) {
+      setError("Failed to save. Check connection.");
+    } else {
+      if (queued) setSavedOffline(true);
       onLogSaved(log);
       setCasesProduced("");
       setCasesRejected("");
       setNotes("");
-    } catch {
-      setError("Failed to save. Check connection.");
-    } finally {
-      setSaving(false);
     }
+
+    setSaving(false);
   };
 
   return (
@@ -114,9 +113,7 @@ export function LogEntryTab({
       {/* Shift info */}
       <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 mb-4 text-sm text-gray-600">
         <Clock size={14} className="shrink-0" />
-        <span>
-          {s.label} · {s.start} – {s.end}
-        </span>
+        <span>{s.label} · {s.start} – {s.end}</span>
       </div>
 
       {/* Supervisor */}
@@ -139,9 +136,7 @@ export function LogEntryTab({
       </div>
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div>
-          <label className="text-xs text-gray-500 block mb-1">
-            Cases produced
-          </label>
+          <label className="text-xs text-gray-500 block mb-1">Cases produced</label>
           <input
             type="number"
             inputMode="numeric"
@@ -153,9 +148,7 @@ export function LogEntryTab({
           />
         </div>
         <div>
-          <label className="text-xs text-gray-500 block mb-1">
-            Cases rejected
-          </label>
+          <label className="text-xs text-gray-500 block mb-1">Cases rejected</label>
           <input
             type="number"
             inputMode="numeric"
@@ -181,6 +174,13 @@ export function LogEntryTab({
           className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white resize-none"
         />
       </div>
+
+      {/* Offline queued notice */}
+      {savedOffline && (
+        <p className="text-amber-700 text-sm mb-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+          Saved offline — will sync automatically when online.
+        </p>
+      )}
 
       {error && (
         <p className="text-red-600 text-sm mb-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
