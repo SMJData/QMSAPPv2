@@ -1,42 +1,31 @@
+// src/app/api/downtime/route.ts
+// NOTE: Downtime events are now inserted as part of /api/submit (with shift_report_id FK).
+// This route handles standalone downtime queries for a given shift report.
+
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import type { DowntimeEvent } from "@/types";
-import { calcDurationMinutes } from "@/lib/constants";
 
-export async function POST(req: NextRequest) {
-  try {
-    const body: DowntimeEvent = await req.json();
-    const duration = body.startTime && body.endTime
-      ? calcDurationMinutes(body.startTime, body.endTime)
-      : null;
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const shiftReportId = searchParams.get("shiftReportId");
 
-    const { data, error } = await supabase
-      .from("downtime_events")
-      .insert([
-        {
-          shift: body.shift,
-          shift_date: body.shiftDate,
-          line: body.line,
-          category: body.category,
-          start_time: body.startTime,
-          end_time: body.endTime,
-          duration_minutes: duration,
-          description: body.description,
-          supervisor_name: body.supervisorName,
-          logged_at: new Date().toISOString(),
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Supabase downtime insert error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ event: data }, { status: 201 });
-  } catch (error) {
-    console.error("POST /api/downtime error:", error);
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  if (!shiftReportId) {
+    return NextResponse.json(
+      { error: "shiftReportId query param is required" },
+      { status: 400 }
+    );
   }
+
+  const { data, error } = await supabase
+    .from("downtime_events")
+    .select("*")
+    .eq("shift_report_id", shiftReportId)
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    console.error("GET /api/downtime error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ events: data });
 }

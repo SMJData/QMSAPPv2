@@ -54,7 +54,7 @@ export interface ProductionLog {
   jobDescription: string;
   brand: string;
   shift: ShiftKey;
-  shiftDate: string; // ISO date of shift START (night shift uses the start date)
+  shiftDate: string;
   line: string;
   casesProduced: number;
   casesRejected: number;
@@ -63,12 +63,19 @@ export interface ProductionLog {
   submittedAt?: string;
 }
 
+export type DowntimeCategory =
+  | "Operational"
+  | "Mechanical"
+  | "External"
+  | "Scheduled";
+
 export interface DowntimeEvent {
   id?: string;
   shift: ShiftKey;
   shiftDate: string;
   line: string;
-  category: string;
+  category: DowntimeCategory;
+  partAffected: string;        // ← added
   startTime: string;
   endTime: string;
   durationMinutes?: number;
@@ -89,11 +96,3 @@ export interface ShiftReport {
   totalDowntimeMinutes: number;
   submittedAt: string;
 }
-
-export type DowntimeCategory =
-  | "Mechanical"
-  | "Utility failure"
-  | "Quality hold"
-  | "Changeover"
-  | "Awaiting materials"
-  | "Other";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { TopBar } from "@/components/TopBar";
 import { BottomTabBar, type TabKey } from "@/components/BottomTabBar";
 import { JobsTab } from "@/components/JobsTab";
@@ -19,7 +19,7 @@ export default function HomePage() {
   const [line, setLine] = useState<string>(PRODUCTION_LINES[0]);
   const [supervisorName, setSupervisorName] = useState("");
 
-  // Job state
+  // Job state — seed from cache immediately so UI isn't blank offline
   const [jobs, setJobs] = useState<Job[]>(() => getCachedJobs<Job>());
   const [jobsLoading, setJobsLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -31,6 +31,10 @@ export default function HomePage() {
   // Offline queue
   const { online, syncing, pendingSync, syncOrQueue, drain } = useOfflineQueue();
 
+  // Prevent duplicate syncs if online event fires multiple times rapidly
+  const syncingJobsRef = useRef(false);
+
+  // ─── Load jobs from job_master ────────────────────────────
   const loadJobs = useCallback(async () => {
     setJobsLoading(true);
     try {
@@ -38,29 +42,58 @@ export default function HomePage() {
       const data = await res.json();
       const fetched = data.jobs ?? [];
       setJobs(fetched);
-      setCachedJobs(fetched); // cache for offline use
+      setCachedJobs(fetched);
     } catch {
-      // Stay with whatever is already in state (cached jobs from localStorage)
       console.error("Failed to load jobs — using cache");
     } finally {
       setJobsLoading(false);
     }
   }, []);
 
+  // ─── Full sync: Epicor → job_master → local state ─────────
+  // Only runs when WiFi is detected and a sync is not already in flight
+  const syncOnConnect = useCallback(async () => {
+    if (syncingJobsRef.current) return;
+    syncingJobsRef.current = true;
+
+    try {
+      // 1. Drain any records queued while offline
+      await drain();
+
+      // 2. Pull fresh jobs from Epicor into job_master
+      await fetch("/api/sync-jobs");
+
+      // 3. Refresh local state from job_master
+      await loadJobs();
+    } catch {
+      console.error("Sync on connect failed");
+    } finally {
+      syncingJobsRef.current = false;
+    }
+  }, [drain, loadJobs]);
+
+  // ─── Initial load ─────────────────────────────────────────
   useEffect(() => {
-    loadJobs();
-  }, [loadJobs]);
+    if (navigator.onLine) {
+      syncOnConnect(); // online at launch — sync immediately
+    } else {
+      loadJobs();      // offline at launch — load from cache only
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── React to WiFi reconnection ───────────────────────────
+  // This is the only trigger for sync — purely event-driven
+  useEffect(() => {
+    const handleOnline = () => syncOnConnect();
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [syncOnConnect]);
 
   // Auto-detect shift based on current time
   useEffect(() => {
     const hour = new Date().getHours();
     setShift(hour >= 7 && hour < 19 ? "day" : "night");
   }, []);
-
-  // Try to drain queue whenever we come back online
-  useEffect(() => {
-    if (online && pendingSync > 0) drain();
-  }, [online, pendingSync, drain]);
 
   const handleJobSelect = (job: Job) => {
     setSelectedJob(job);
