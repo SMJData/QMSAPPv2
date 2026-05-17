@@ -5,6 +5,7 @@ import { PlusCircle, Clock, Trash2 } from "lucide-react";
 import { BottomSheet } from "@/components/BottomSheet";
 import {
   DOWNTIME_CATEGORIES,
+  DOWNTIME_PARTS,
   DOWNTIME_CATEGORY_STYLES,
   SHIFTS,
   calcDurationMinutes,
@@ -35,6 +36,7 @@ export function DowntimeTab({
 }: DowntimeTabProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [category, setCategory] = useState<DowntimeCategory>("Mechanical");
+  const [partAffected, setPartAffected] = useState<string>(DOWNTIME_PARTS[0]);
   const [startTime, setStartTime] = useState(SHIFTS[shift].start);
   const [endTime, setEndTime] = useState("");
   const [description, setDescription] = useState("");
@@ -47,6 +49,7 @@ export function DowntimeTab({
   const handleOpen = () => {
     setStartTime(s.start);
     setEndTime("");
+    setPartAffected(DOWNTIME_PARTS[0]);
     setDescription("");
     setError("");
     setSavedOffline(false);
@@ -54,8 +57,9 @@ export function DowntimeTab({
   };
 
   const handleSave = async () => {
-    if (!startTime) { setError("Enter start time"); return; }
-    if (!endTime)   { setError("Enter end time");   return; }
+    if (!partAffected) { setError("Select part affected"); return; }
+    if (!startTime)    { setError("Enter start time");     return; }
+    if (!endTime)      { setError("Enter end time");       return; }
     setError("");
     setSaving(true);
     setSavedOffline(false);
@@ -65,6 +69,7 @@ export function DowntimeTab({
       shiftDate: getShiftDate(shift),
       line,
       category,
+      partAffected,
       startTime,
       endTime,
       durationMinutes: calcDurationMinutes(startTime, endTime),
@@ -133,10 +138,15 @@ export function DowntimeTab({
             };
             return (
               <div key={i} className="border border-gray-200 rounded-xl p-3 bg-white">
-                <div className="flex items-center justify-between mb-2">
-                  <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full", style.bg, style.text)}>
-                    {e.category}
-                  </span>
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex flex-col gap-1">
+                    <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit", style.bg, style.text)}>
+                      {e.category}
+                    </span>
+                    <span className="text-[11px] text-gray-500 font-medium">
+                      {e.partAffected}
+                    </span>
+                  </div>
                   <button onClick={() => onEventRemoved(i)} className="text-red-400 hover:text-red-600 p-1">
                     <Trash2 size={14} />
                   </button>
@@ -161,21 +171,39 @@ export function DowntimeTab({
       {/* Add downtime sheet */}
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Log downtime event">
         <div className="space-y-3">
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as DowntimeCategory)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
-            >
-              {DOWNTIME_CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
+
+          {/* Category + Part — side by side */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Start time</label>
+              <label className="text-xs text-gray-500 block mb-1">Category *</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as DowntimeCategory)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+              >
+                {DOWNTIME_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Part affected *</label>
+              <select
+                value={partAffected}
+                onChange={(e) => setPartAffected(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+              >
+                {DOWNTIME_PARTS.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Times */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Start time *</label>
               <input
                 type="time"
                 value={startTime}
@@ -184,7 +212,7 @@ export function DowntimeTab({
               />
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">End time</label>
+              <label className="text-xs text-gray-500 block mb-1">End time *</label>
               <input
                 type="time"
                 value={endTime}
@@ -193,6 +221,8 @@ export function DowntimeTab({
               />
             </div>
           </div>
+
+          {/* Description */}
           <div>
             <label className="text-xs text-gray-500 block mb-1">Description</label>
             <input
@@ -203,11 +233,13 @@ export function DowntimeTab({
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
             />
           </div>
+
           {error && (
             <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2">
               {error}
             </p>
           )}
+
           <button
             onClick={handleSave}
             disabled={saving}
