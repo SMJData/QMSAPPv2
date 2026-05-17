@@ -1,9 +1,7 @@
-
-// BottomSheet.tsx - A React component that renders a bottom sheet overlay with a title and content area.
-
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 interface BottomSheetProps {
   open: boolean;
@@ -13,19 +11,21 @@ interface BottomSheetProps {
 }
 
 export function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
+  const portalRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    portalRef.current = document.body;
+  }, []);
+
   // Lock body scroll when open
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
-  if (!open) return null;
+  if (!open || !portalRef.current) return null;
 
-  return (
+  return createPortal(
     <div
       className="sheet-backdrop"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
@@ -35,6 +35,7 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
         <h2 className="text-base font-semibold text-gray-900 mb-4">{title}</h2>
         {children}
       </div>
-    </div>
+    </div>,
+    portalRef.current
   );
 }
