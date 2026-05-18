@@ -16,9 +16,12 @@ interface TopBarProps {
 export function TopBar({ shift, pendingSync = 0, syncing = false }: TopBarProps) {
   const s = SHIFTS[shift];
   const today = format(new Date(), "EEE d MMM");
-  const [online, setOnline] = useState(true);
+
+  // null = not yet mounted (SSR), true/false = actual online state
+  const [online, setOnline] = useState<boolean | null>(null);
 
   useEffect(() => {
+    // Set real value only on client after mount
     setOnline(navigator.onLine);
     const handleOnline  = () => setOnline(true);
     const handleOffline = () => setOnline(false);
@@ -67,8 +70,8 @@ export function TopBar({ shift, pendingSync = 0, syncing = false }: TopBarProps)
             </div>
           ) : null}
 
-          {/* Online / offline pill */}
-          {online ? (
+          {/* Online / offline pill — only render after client mount */}
+          {online === null ? null : online ? (
             <div className="flex items-center gap-1 bg-green-400/20 border border-green-400/40 rounded-full px-2 py-0.5">
               <Wifi size={10} className="text-green-300" />
               <span className="text-green-300 text-[10px] font-semibold">Online</span>
