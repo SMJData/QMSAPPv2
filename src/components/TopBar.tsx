@@ -3,9 +3,12 @@
 import { SMJLogo } from "./SMJLogo";
 import type { ShiftKey } from "@/types";
 import { SHIFTS } from "@/lib/constants";
-import { Sun, Moon, Wifi, WifiOff, CloudUpload } from "lucide-react";
+import { Sun, Moon, Wifi, WifiOff, CloudUpload, LogOut } from "lucide-react";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/useSession";
+import { logout } from "@/lib/auth-actions";
 
 interface TopBarProps {
   shift: ShiftKey;
@@ -16,6 +19,8 @@ interface TopBarProps {
 export function TopBar({ shift, pendingSync = 0, syncing = false }: TopBarProps) {
   const s = SHIFTS[shift];
   const today = format(new Date(), "EEE d MMM");
+  const router = useRouter();
+  const { profile } = useSession();
 
   // null = not yet mounted (SSR), true/false = actual online state
   const [online, setOnline] = useState<boolean | null>(null);
@@ -80,6 +85,22 @@ export function TopBar({ shift, pendingSync = 0, syncing = false }: TopBarProps)
             <div className="flex items-center gap-1 bg-red-400/20 border border-red-400/40 rounded-full px-2 py-0.5">
               <WifiOff size={10} className="text-red-300" />
               <span className="text-red-300 text-[10px] font-semibold">Offline</span>
+            </div>
+          )}
+
+          {/* User + logout */}
+          {profile && (
+            <div className="flex items-center gap-1.5 ml-1 pl-1.5 border-l border-white/20">
+              <span className="text-white/60 text-[10px] hidden sm:inline">
+                {profile.full_name ?? profile.email}
+              </span>
+              <button
+                onClick={() => logout(router)}
+                title="Sign out"
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <LogOut size={13} />
+              </button>
             </div>
           )}
 
