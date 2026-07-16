@@ -77,7 +77,7 @@ export function DowntimeTab({
       supervisorName,
     };
 
-    const { queued } = await syncOrQueue("/api/downtime", "POST", event);
+    const { queued } = await syncOrQueue("/api/submit", "POST", event);
 
     if (queued) setSavedOffline(true);
     onEventAdded(event);
