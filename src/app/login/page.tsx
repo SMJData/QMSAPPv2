@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -27,7 +28,7 @@ export default function LoginPage() {
     }
 
     router.push("/");
-    router.refresh(); // ensures server components re-read the new session
+    router.refresh();
   };
 
   return (
@@ -36,7 +37,19 @@ export default function LoginPage() {
         onSubmit={handleLogin}
         className="w-full max-w-sm space-y-4 rounded-lg bg-white p-6 shadow"
       >
-        <h1 className="text-xl font-semibold text-[#134395]">SMJ Production Logger</h1>
+        <div className="flex justify-center pb-2">
+          <Image
+            src="/SMJaleel%20Logo%20and%20Tagline_FAW_2.svg"
+            alt="S.M. Jaleel & Co. Ltd."
+            width={220}
+            height={85}
+            priority
+          />
+        </div>
+
+        <h1 className="text-center text-lg font-semibold text-[#134395]">
+          Production Logger
+        </h1>
 
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
