@@ -1,3 +1,4 @@
+// src/components/DowntimeTab.tsx
 "use client";
 
 import { useState } from "react";
@@ -32,7 +33,6 @@ export function DowntimeTab({
   events,
   onEventAdded,
   onEventRemoved,
-  syncOrQueue,
 }: DowntimeTabProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [category, setCategory] = useState<DowntimeCategory>("Mechanical");
@@ -41,7 +41,6 @@ export function DowntimeTab({
   const [endTime, setEndTime] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
-  const [savedOffline, setSavedOffline] = useState(false);
   const [error, setError] = useState("");
 
   const s = SHIFTS[shift];
@@ -52,7 +51,6 @@ export function DowntimeTab({
     setPartAffected(DOWNTIME_PARTS[0]);
     setDescription("");
     setError("");
-    setSavedOffline(false);
     setSheetOpen(true);
   };
 
@@ -62,7 +60,6 @@ export function DowntimeTab({
     if (!endTime)      { setError("Enter end time");       return; }
     setError("");
     setSaving(true);
-    setSavedOffline(false);
 
     const event: DowntimeEvent = {
       shift,
@@ -77,9 +74,8 @@ export function DowntimeTab({
       supervisorName,
     };
 
-    const { queued } = await syncOrQueue("/api/submit", "POST", event);
-
-    if (queued) setSavedOffline(true);
+    // Local only — bundled into the full ShiftReport and sent
+    // via SummaryTab's "Submit shift report" action.
     onEventAdded(event);
     setSheetOpen(false);
     setSaving(false);
@@ -94,13 +90,6 @@ export function DowntimeTab({
         <Clock size={14} className="shrink-0" />
         <span>{s.label} · {s.start} – {s.end}</span>
       </div>
-
-      {/* Offline notice */}
-      {savedOffline && (
-        <p className="text-amber-700 text-sm mb-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-          Saved offline — will sync automatically when online.
-        </p>
-      )}
 
       {/* Summary chip */}
       {events.length > 0 && (
