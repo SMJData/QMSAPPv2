@@ -98,8 +98,8 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div className="page-enter px-4 pt-6 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
+    <div className="admin-page-wrapper">
+      <div className="admin-shell shadow-xl">
         <h1 className="text-lg font-bold text-smj-navy">User Management</h1>
         <button
           onClick={() => setFormOpen(true)}

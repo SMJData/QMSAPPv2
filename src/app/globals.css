@@ -113,3 +113,21 @@ button {
 ::-webkit-scrollbar       { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+.admin-page-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+}
+
+.admin-shell {
+  max-width: 430px;
+  height: 300vh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  position: relative;
+}
