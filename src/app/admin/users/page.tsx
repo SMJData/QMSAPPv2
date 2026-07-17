@@ -147,69 +147,71 @@ export default function AdminUsersPage() {
 
       {/* New user form */}
       {formOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-xl p-5 w-full max-w-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-smj-navy">New User</h2>
-              <button onClick={() => setFormOpen(false)}>
-                <X size={18} className="text-gray-400" />
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black/40 z-50 overflow-y-auto">
+          <div className="min-h-full flex items-start sm:items-center justify-center px-4 py-8">
+            <div className="bg-white rounded-xl p-5 w-full max-w-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-smj-navy">New User</h2>
+                <button onClick={() => setFormOpen(false)}>
+                  <X size={18} className="text-gray-400" />
+                </button>
+              </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Full name</label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Temporary password</label>
-                <input
-                  type="text"
-                  value={tempPassword}
-                  onChange={(e) => setTempPassword(e.target.value)}
-                  placeholder="Share this with the user directly"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Role</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Full name</label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Temporary password</label>
+                  <input
+                    type="text"
+                    value={tempPassword}
+                    onChange={(e) => setTempPassword(e.target.value)}
+                    placeholder="Share this with the user directly"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Role</label>
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  onClick={handleCreate}
+                  disabled={saving}
+                  className={cn(
+                    "w-full bg-smj-navy text-white rounded-xl py-3 text-sm font-semibold mt-2",
+                    saving && "opacity-60"
+                  )}
                 >
-                  {ROLES.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
+                  {saving ? "Creating…" : "Create user"}
+                </button>
               </div>
-
-              <button
-                onClick={handleCreate}
-                disabled={saving}
-                className={cn(
-                  "w-full bg-smj-navy text-white rounded-xl py-3 text-sm font-semibold mt-2",
-                  saving && "opacity-60"
-                )}
-              >
-                {saving ? "Creating…" : "Create user"}
-              </button>
             </div>
           </div>
         </div>
