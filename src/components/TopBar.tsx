@@ -1,9 +1,10 @@
+// src/components/TopBar.tsx
 "use client";
 
 import { SMJLogo } from "./SMJLogo";
 import type { ShiftKey } from "@/types";
 import { SHIFTS } from "@/lib/constants";
-import { Sun, Moon, Wifi, WifiOff, CloudUpload, LogOut } from "lucide-react";
+import { Sun, Moon, Wifi, WifiOff, CloudUpload, LogOut, Users } from "lucide-react";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -22,11 +23,9 @@ export function TopBar({ shift, pendingSync = 0, syncing = false }: TopBarProps)
   const router = useRouter();
   const { profile } = useSession();
 
-  // null = not yet mounted (SSR), true/false = actual online state
   const [online, setOnline] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Set real value only on client after mount
     setOnline(navigator.onLine);
     const handleOnline  = () => setOnline(true);
     const handleOffline = () => setOnline(false);
@@ -39,7 +38,7 @@ export function TopBar({ shift, pendingSync = 0, syncing = false }: TopBarProps)
   }, []);
 
   return (
-    <div className="bg-smj-navy px-4 pt-3 pb-2.5 text-white overflow-visible">
+    <div className="bg-smj-navy px-4 pt-3 pb-2.5 text-white">
       {/* Row 1: logo + shift */}
       <div className="flex items-center justify-between">
         <SMJLogo height={40} variant="white" />
@@ -60,7 +59,6 @@ export function TopBar({ shift, pendingSync = 0, syncing = false }: TopBarProps)
 
         <div className="flex items-center gap-1.5">
 
-          {/* Pending / syncing badge */}
           {syncing ? (
             <div className="flex items-center gap-1 bg-blue-400/20 border border-blue-400/40 rounded-full px-2 py-0.5">
               <CloudUpload size={10} className="text-blue-300 animate-pulse" />
@@ -75,7 +73,6 @@ export function TopBar({ shift, pendingSync = 0, syncing = false }: TopBarProps)
             </div>
           ) : null}
 
-          {/* Online / offline pill — only render after client mount */}
           {online === null ? null : online ? (
             <div className="flex items-center gap-1 bg-green-400/20 border border-green-400/40 rounded-full px-2 py-0.5">
               <Wifi size={10} className="text-green-300" />
@@ -88,12 +85,21 @@ export function TopBar({ shift, pendingSync = 0, syncing = false }: TopBarProps)
             </div>
           )}
 
-          {/* User + logout */}
+          {/* User + admin link + logout */}
           {profile && (
             <div className="flex items-center gap-1.5 ml-1 pl-1.5 border-l border-white/20">
               <span className="text-white/60 text-[10px] hidden sm:inline">
                 {profile.full_name ?? profile.email}
               </span>
+              {profile.role === "admin" && (
+                <button
+                  onClick={() => router.push("/admin/users")}
+                  title="User management"
+                  className="text-white/70 hover:text-white transition-colors"
+                >
+                  <Users size={13} />
+                </button>
+              )}
               <button
                 onClick={() => logout(router)}
                 title="Sign out"
