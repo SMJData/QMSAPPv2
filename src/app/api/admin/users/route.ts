@@ -1,6 +1,6 @@
 // src/app/api/admin/users/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { supabaseServer } from "@/lib/supabase-server";
 
 export async function POST(req: NextRequest) {
@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  const supabaseAdmin = getSupabaseAdmin();
+
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email,
     password: tempPassword,
@@ -38,7 +40,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  // handle_new_user trigger already created the profile row as machine_operator — update to chosen role
   const { error: roleError } = await supabaseAdmin
     .from("profiles")
     .update({ role })
