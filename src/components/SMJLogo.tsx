@@ -14,7 +14,7 @@ export function SMJLogo({ className, variant = "white", height = 28 }: SMJLogoPr
 
   return (
     <svg
-    viewBox="-20 -40 500 170"
+    viewBox="-25 -50 510 190"
     xmlns="http://www.w3.org/2000/svg"
     aria-label="S.M. Jaleel & Company"
     style={{ height, width: "auto", display: "block" }}
