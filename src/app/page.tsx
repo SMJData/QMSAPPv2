@@ -1,182 +1,240 @@
+// src/app/admin/users/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { TopBar } from "@/components/TopBar";
-import { BottomTabBar, type TabKey } from "@/components/BottomTabBar";
-import { JobsTab } from "@/components/JobsTab";
-import { LogEntryTab } from "@/components/LogEntryTab";
-import { DowntimeTab } from "@/components/DowntimeTab";
-import { SummaryTab } from "@/components/SummaryTab";
-import type { Job, ShiftKey, ProductionLog, DowntimeEvent } from "@/types";
-import { PRODUCTION_LINES } from "@/lib/constants";
-import { useOfflineQueue, getCachedJobs, setCachedJobs } from "@/lib/useOfflineQueue";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import { UserPlus, X, ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export default function HomePage() {
-  const [activeTab, setActiveTab] = useState<TabKey>("jobs");
+type Profile = {
+  id: string;
+  full_name: string | null;
+  email: string;
+  role: string;
+  created_at: string;
+};
 
-  // Shift state
-  const [shift, setShift] = useState<ShiftKey>("day");
-  const [line, setLine] = useState<string>(PRODUCTION_LINES[0]);
-  const [supervisorName, setSupervisorName] = useState("");
+const ROLES = [
+  { value: "admin", label: "Admin" },
+  { value: "machine_operator", label: "Machine Operator" },
+  { value: "maintenance_technician", label: "Maintenance Technician" },
+  { value: "production_coordinator", label: "Production Coordinator" },
+];
 
-  // Job state — seed from cache immediately so UI isn't blank offline
-  const [jobs, setJobs] = useState<Job[]>(() => getCachedJobs<Job>());
-  const [jobsLoading, setJobsLoading] = useState(true);
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+function roleLabel(value: string) {
+  return ROLES.find((r) => r.value === value)?.label ?? value;
+}
 
-  // Session data
-  const [productionLogs, setProductionLogs] = useState<ProductionLog[]>([]);
-  const [downtimeEvents, setDowntimeEvents] = useState<DowntimeEvent[]>([]);
+export default function AdminUsersPage() {
+  const [users, setUsers] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  // Offline queue
-  const { online, syncing, pendingSync, syncOrQueue, drain } = useOfflineQueue();
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState("machine_operator");
+  const [tempPassword, setTempPassword] = useState("");
 
-  // Prevent duplicate syncs if online event fires multiple times rapidly
-  const syncingJobsRef = useRef(false);
+  const loadUsers = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, role, created_at")
+      .order("created_at", { ascending: false });
+    setUsers(data ?? []);
+    setLoading(false);
+  };
 
-  // ─── Load jobs from job_master ────────────────────────────
-  const loadJobs = useCallback(async () => {
-    setJobsLoading(true);
-    try {
-      const res = await fetch("/api/jobs");
-      const data = await res.json();
-      const fetched = data.jobs ?? [];
-      setJobs(fetched);
-      setCachedJobs(fetched);
-    } catch {
-      console.error("Failed to load jobs — using cache");
-    } finally {
-      setJobsLoading(false);
-    }
+  useEffect(() => {
+    loadUsers();
   }, []);
 
-  // ─── Full sync: Epicor → job_master → local state ─────────
-  // Only runs when WiFi is detected and a sync is not already in flight
-  const syncOnConnect = useCallback(async () => {
-    if (syncingJobsRef.current) return;
-    syncingJobsRef.current = true;
-
-    try {
-      // 1. Drain any records queued while offline
-      await drain();
-
-      // 2. Pull fresh jobs from Epicor into job_master
-      await fetch("/api/sync-jobs");
-
-      // 3. Refresh local state from job_master
-      await loadJobs();
-    } catch {
-      console.error("Sync on connect failed");
-    } finally {
-      syncingJobsRef.current = false;
+  const updateRole = async (id: string, newRole: string) => {
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role: newRole } : u)));
+    const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", id);
+    if (error) {
+      setError(error.message);
+      loadUsers(); // revert on failure
     }
-  }, [drain, loadJobs]);
+  };
 
-  // ─── Initial load ─────────────────────────────────────────
-  useEffect(() => {
-    if (navigator.onLine) {
-      syncOnConnect(); // online at launch — sync immediately
-    } else {
-      loadJobs();      // offline at launch — load from cache only
+  const handleCreate = async () => {
+    if (!email || !fullName || !tempPassword) {
+      setError("All fields are required.");
+      return;
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    setError("");
+    setSaving(true);
 
-  // ─── React to WiFi reconnection ───────────────────────────
-  // This is the only trigger for sync — purely event-driven
-  useEffect(() => {
-    const handleOnline = () => syncOnConnect();
-    window.addEventListener("online", handleOnline);
-    return () => window.removeEventListener("online", handleOnline);
-  }, [syncOnConnect]);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-  // Auto-detect shift based on current time
-  useEffect(() => {
-    const hour = new Date().getHours();
-    setShift(hour >= 7 && hour < 19 ? "day" : "night");
-  }, []);
+    const res = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ email, fullName, role, tempPassword }),
+    });
 
-  const handleJobSelect = (job: Job) => {
-    setSelectedJob(job);
-    setActiveTab("log");
-  };
+    const result = await res.json();
+    setSaving(false);
 
-  const handleLogSaved = (log: ProductionLog) => {
-    setProductionLogs((prev) => [...prev, log]);
-    setActiveTab("summary");
-  };
+    if (!res.ok) {
+      setError(result.error ?? "Failed to create user.");
+      return;
+    }
 
-  const handleEventAdded = (event: DowntimeEvent) => {
-    setDowntimeEvents((prev) => [...prev, event]);
-  };
-
-  const handleEventRemoved = (index: number) => {
-    setDowntimeEvents((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSubmitSuccess = () => {
-    setTimeout(() => {
-      setProductionLogs([]);
-      setDowntimeEvents([]);
-      setSelectedJob(null);
-      setActiveTab("jobs");
-    }, 3000);
+    setFormOpen(false);
+    setEmail("");
+    setFullName("");
+    setTempPassword("");
+    setRole("machine_operator");
+    loadUsers();
   };
 
   return (
     <div className="app-shell shadow-xl">
-      <TopBar shift={shift} pendingSync={pendingSync} syncing={syncing} />
+      {/* Header — matches TopBar's navy styling, with back navigation */}
+      <div className="bg-smj-navy px-4 pt-3 pb-2.5 text-white flex items-center gap-3">
+        <Link
+          href="/"
+          className="text-white/80 hover:text-white transition-colors shrink-0"
+        >
+          <ArrowLeft size={20} />
+        </Link>
+        <div>
+          <div className="text-sm font-semibold">User Management</div>
+          <div className="text-[10px] text-white/50">Production Logger · Admin</div>
+        </div>
+      </div>
 
-      <div className="content-area">
-        {activeTab === "jobs" && (
-          <JobsTab
-            jobs={jobs}
-            loading={jobsLoading}
-            shift={shift}
-            line={line}
-            selectedJob={selectedJob}
-            onShiftChange={setShift}
-            onLineChange={setLine}
-            onJobSelect={handleJobSelect}
-            onRefresh={loadJobs}
-          />
+      <div className="content-area px-4 pt-4">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+            {users.length} user{users.length !== 1 ? "s" : ""}
+          </span>
+          <button
+            onClick={() => setFormOpen(true)}
+            className="flex items-center gap-1.5 bg-smj-navy text-white rounded-xl px-3.5 py-2 text-sm font-semibold"
+          >
+            <UserPlus size={16} />
+            New User
+          </button>
+        </div>
+
+        {error && (
+          <p className="text-red-600 text-sm mb-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+            {error}
+          </p>
         )}
-        {activeTab === "log" && (
-          <LogEntryTab
-            selectedJob={selectedJob}
-            shift={shift}
-            line={line}
-            supervisorName={supervisorName}
-            onSupervisorChange={setSupervisorName}
-            onGoToJobs={() => setActiveTab("jobs")}
-            onLogSaved={handleLogSaved}
-            syncOrQueue={syncOrQueue}
-          />
-        )}
-        {activeTab === "downtime" && (
-          <DowntimeTab
-            shift={shift}
-            line={line}
-            supervisorName={supervisorName}
-            events={downtimeEvents}
-            onEventAdded={handleEventAdded}
-            onEventRemoved={handleEventRemoved}
-            syncOrQueue={syncOrQueue}
-          />
-        )}
-        {activeTab === "summary" && (
-          <SummaryTab
-            shift={shift}
-            line={line}
-            supervisorName={supervisorName}
-            productionLogs={productionLogs}
-            downtimeEvents={downtimeEvents}
-            onSubmitSuccess={handleSubmitSuccess}
-            syncOrQueue={syncOrQueue}
-          />
+
+        {loading ? (
+          <p className="text-sm text-gray-400 text-center py-10">Loading users…</p>
+        ) : (
+          <div className="space-y-2">
+            {users.map((u) => (
+              <div
+                key={u.id}
+                className="flex items-center justify-between border border-gray-200 rounded-xl p-3 bg-white"
+              >
+                <div>
+                  <div className="text-sm font-semibold text-gray-800">{u.full_name ?? "—"}</div>
+                  <div className="text-xs text-gray-500">{u.email}</div>
+                </div>
+                <select
+                  value={u.role}
+                  onChange={(e) => updateRole(u.id, e.target.value)}
+                  className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white"
+                >
+                  {ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
-      <BottomTabBar active={activeTab} onChange={setActiveTab} />
+      {/* New user form */}
+      {formOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 overflow-y-auto">
+          <div className="min-h-full flex items-start sm:items-center justify-center px-4 py-8">
+            <div className="bg-white rounded-xl p-5 w-full max-w-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-smj-navy">New User</h2>
+                <button onClick={() => setFormOpen(false)}>
+                  <X size={18} className="text-gray-400" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Full name</label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Temporary password</label>
+                  <input
+                    type="text"
+                    value={tempPassword}
+                    onChange={(e) => setTempPassword(e.target.value)}
+                    placeholder="Share this with the user directly"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Role</label>
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  onClick={handleCreate}
+                  disabled={saving}
+                  className={cn(
+                    "w-full bg-smj-navy text-white rounded-xl py-3 text-sm font-semibold mt-2",
+                    saving && "opacity-60"
+                  )}
+                >
+                  {saving ? "Creating…" : "Create user"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
