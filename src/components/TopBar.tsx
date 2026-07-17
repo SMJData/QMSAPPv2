@@ -42,7 +42,7 @@ export function TopBar({ shift, pendingSync = 0, syncing = false }: TopBarProps)
     <div className="bg-smj-navy px-4 pt-3 pb-2.5 text-white overflow-visible">
       {/* Row 1: logo + shift */}
       <div className="flex items-center justify-between">
-        <SMJLogo height={22} variant="white" />
+        <SMJLogo height={26} variant="white" />
         <div className="text-right">
           <div className="flex items-center gap-1 justify-end text-white/70 text-xs">
             {shift === "day" ? <Sun size={11} /> : <Moon size={11} />}
