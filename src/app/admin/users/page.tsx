@@ -2,8 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { UserPlus, X } from "lucide-react";
+import { UserPlus, X, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Profile = {
@@ -100,98 +101,57 @@ export default function AdminUsersPage() {
   return (
     <div className="admin-page-wrapper">
       <div className="admin-shell shadow-xl">
-        <h1 className="text-lg font-bold text-smj-navy">User Management</h1>
-        <button
-          onClick={() => setFormOpen(true)}
-          className="flex items-center gap-1.5 bg-smj-navy text-white rounded-xl px-3.5 py-2 text-sm font-semibold"
-        >
-          <UserPlus size={16} />
-          New User
-        </button>
-      </div>
-
-      {error && (
-        <p className="text-red-600 text-sm mb-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-          {error}
-        </p>
-      )}
-
-      {loading ? (
-        <p className="text-sm text-gray-400 text-center py-10">Loading users…</p>
-      ) : (
-        <div className="space-y-2">
-          {users.map((u) => (
-            <div
-              key={u.id}
-              className="flex items-center justify-between border border-gray-200 rounded-xl p-3 bg-white"
-            >
-              <div>
-                <div className="text-sm font-semibold text-gray-800">{u.full_name ?? "—"}</div>
-                <div className="text-xs text-gray-500">{u.email}</div>
-              </div>
-              <select
-                value={u.role}
-                onChange={(e) => updateRole(u.id, e.target.value)}
-                className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white"
-              >
-                {ROLES.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))}
+        {/* Header — matches TopBar's navy styling, with back navigation */}
+        <div className="bg-smj-navy px-4 pt-3 pb-2.5 text-white flex items-center gap-3 shrink-0">
+          <Link
+            href="/"
+            className="text-white/80 hover:text-white transition-colors shrink-0"
+          >
+            <ArrowLeft size={20} />
+          </Link>
+          <div>
+            <div className="text-sm font-semibold">User Management</div>
+            <div className="text-[10px] text-white/50">Production Logger · Admin</div>
+          </div>
         </div>
-      )}
 
-      {/* New user form */}
-      {formOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 overflow-y-auto">
-          <div className="min-h-full flex items-start sm:items-center justify-center px-4 py-8">
-            <div className="bg-white rounded-xl p-5 w-full max-w-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-smj-navy">New User</h2>
-                <button onClick={() => setFormOpen(false)}>
-                  <X size={18} className="text-gray-400" />
-                </button>
-              </div>
+        <div className="flex-1 overflow-y-auto px-4 pt-4">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+              {users.length} user{users.length !== 1 ? "s" : ""}
+            </span>
+            <button
+              onClick={() => setFormOpen(true)}
+              className="flex items-center gap-1.5 bg-smj-navy text-white rounded-xl px-3.5 py-2 text-sm font-semibold"
+            >
+              <UserPlus size={16} />
+              New User
+            </button>
+          </div>
 
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">Full name</label>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">Temporary password</label>
-                  <input
-                    type="text"
-                    value={tempPassword}
-                    onChange={(e) => setTempPassword(e.target.value)}
-                    placeholder="Share this with the user directly"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">Role</label>
+          {error && (
+            <p className="text-red-600 text-sm mb-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+              {error}
+            </p>
+          )}
+
+          {loading ? (
+            <p className="text-sm text-gray-400 text-center py-10">Loading users…</p>
+          ) : (
+            <div className="space-y-2">
+              {users.map((u) => (
+                <div
+                  key={u.id}
+                  className="flex items-center justify-between border border-gray-200 rounded-xl p-3 bg-white"
+                >
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800">{u.full_name ?? "—"}</div>
+                    <div className="text-xs text-gray-500">{u.email}</div>
+                  </div>
                   <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+                    value={u.role}
+                    onChange={(e) => updateRole(u.id, e.target.value)}
+                    className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white"
                   >
                     {ROLES.map((r) => (
                       <option key={r.value} value={r.value}>
@@ -200,22 +160,83 @@ export default function AdminUsersPage() {
                     ))}
                   </select>
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-                <button
-                  onClick={handleCreate}
-                  disabled={saving}
-                  className={cn(
-                    "w-full bg-smj-navy text-white rounded-xl py-3 text-sm font-semibold mt-2",
-                    saving && "opacity-60"
-                  )}
-                >
-                  {saving ? "Creating…" : "Create user"}
-                </button>
+        {/* New user form */}
+        {formOpen && (
+          <div className="fixed inset-0 bg-black/40 z-50 overflow-y-auto">
+            <div className="min-h-full flex items-start sm:items-center justify-center px-4 py-8">
+              <div className="bg-white rounded-xl p-5 w-full max-w-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-semibold text-smj-navy">New User</h2>
+                  <button onClick={() => setFormOpen(false)}>
+                    <X size={18} className="text-gray-400" />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Full name</label>
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Temporary password</label>
+                    <input
+                      type="text"
+                      value={tempPassword}
+                      onChange={(e) => setTempPassword(e.target.value)}
+                      placeholder="Share this with the user directly"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Role</label>
+                    <select
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r.value} value={r.value}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={handleCreate}
+                    disabled={saving}
+                    className={cn(
+                      "w-full bg-smj-navy text-white rounded-xl py-3 text-sm font-semibold mt-2",
+                      saving && "opacity-60"
+                    )}
+                  >
+                    {saving ? "Creating…" : "Create user"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
