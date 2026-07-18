@@ -1,11 +1,10 @@
 // src/components/DowntimeTab.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { PlusCircle, Clock, Trash2, Search } from "lucide-react";
 import { BottomSheet } from "@/components/BottomSheet";
 import {
-  DOWNTIME_CATEGORIES,
   DOWNTIME_PARTS,
   DOWNTIME_CATEGORY_STYLES,
   SHIFTS,
@@ -13,7 +12,7 @@ import {
   getShiftDate,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import type { DowntimeCategory, DowntimeEvent, ShiftKey, Job } from "@/types";
+import type { DowntimeCategory, DowntimeEvent, DowntimeCode, ShiftKey, Job } from "@/types";
 import type { useOfflineQueue } from "@/lib/useOfflineQueue";
 
 interface DowntimeTabProps {
@@ -23,7 +22,7 @@ interface DowntimeTabProps {
   events: DowntimeEvent[];
   jobs: Job[];
   jobsLoading: boolean;
-  preselectedJob: Job | null; // ← added — carried over from Jobs tab selection
+  preselectedJob: Job | null;
   onEventAdded: (event: DowntimeEvent) => void;
   onEventRemoved: (index: number) => void;
   syncOrQueue: ReturnType<typeof useOfflineQueue>["syncOrQueue"];
@@ -41,7 +40,12 @@ export function DowntimeTab({
   onEventRemoved,
 }: DowntimeTabProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [category, setCategory] = useState<DowntimeCategory>("Mechanical");
+
+  // Downtime codes lookup
+  const [codes, setCodes] = useState<DowntimeCode[]>([]);
+  const [codesLoading, setCodesLoading] = useState(true);
+  const [selectedCodeId, setSelectedCodeId] = useState<string>("");
+
   const [partAffected, setPartAffected] = useState<string>(DOWNTIME_PARTS[0]);
   const [startTime, setStartTime] = useState(SHIFTS[shift].start);
   const [endTime, setEndTime] = useState("");
@@ -54,6 +58,23 @@ export function DowntimeTab({
   const [jobQuery, setJobQuery] = useState("");
 
   const s = SHIFTS[shift];
+
+  // Load downtime codes once on mount
+  useEffect(() => {
+    async function loadCodes() {
+      setCodesLoading(true);
+      try {
+        const res = await fetch("/api/downtime-codes");
+        const data = await res.json();
+        setCodes(data.codes ?? []);
+      } catch {
+        console.error("Failed to load downtime codes");
+      } finally {
+        setCodesLoading(false);
+      }
+    }
+    loadCodes();
+  }, []);
 
   const filteredJobs = useMemo(() => {
     const q = jobQuery.toLowerCase();
@@ -71,19 +92,23 @@ export function DowntimeTab({
     setEndTime("");
     setPartAffected(DOWNTIME_PARTS[0]);
     setDescription("");
-    setSelectedJob(preselectedJob ?? null); // ← pre-fill from Jobs tab selection each time sheet opens
+    setSelectedJob(preselectedJob ?? null);
     setJobQuery("");
+    setSelectedCodeId("");
     setError("");
     setSheetOpen(true);
   };
 
   const handleSave = async () => {
-    if (!selectedJob)  { setError("Select a job");          return; }
-    if (!partAffected) { setError("Select part affected");  return; }
-    if (!startTime)    { setError("Enter start time");      return; }
-    if (!endTime)      { setError("Enter end time");        return; }
+    if (!selectedJob)    { setError("Select a job");          return; }
+    if (!selectedCodeId) { setError("Select a downtime code"); return; }
+    if (!partAffected)   { setError("Select part affected");  return; }
+    if (!startTime)       { setError("Enter start time");      return; }
+    if (!endTime)         { setError("Enter end time");        return; }
     setError("");
     setSaving(true);
+
+    const selectedCode = codes.find((c) => c.id === selectedCodeId)!;
 
     const event: DowntimeEvent = {
       jobNum: selectedJob.jobNum,
@@ -91,7 +116,10 @@ export function DowntimeTab({
       shift,
       shiftDate: getShiftDate(shift),
       line,
-      category,
+      downtimeCodeId: selectedCode.id,
+      downtimeCode: selectedCode.code,
+      downtimeCodeLabel: selectedCode.label,
+      category: selectedCode.category,
       partAffected,
       startTime,
       endTime,
@@ -115,7 +143,7 @@ export function DowntimeTab({
         <span>{s.label} · {s.start} – {s.end}</span>
       </div>
 
-      {/* Pre-selected job banner — shows the job carried over from Jobs tab */}
+      {/* Pre-selected job banner */}
       {preselectedJob && (
         <div className="flex items-center gap-2.5 bg-smj-navy-light border border-smj-navy/20 rounded-xl px-3.5 py-2.5 mb-4">
           <div className="flex-1 min-w-0">
@@ -166,7 +194,7 @@ export function DowntimeTab({
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex flex-col gap-1">
                     <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit", style.bg, style.text)}>
-                      {e.category}
+                      {e.downtimeCode} — {e.downtimeCodeLabel}
                     </span>
                     <span className="text-[11px] text-gray-500 font-medium">
                       {e.jobNum} · {e.partAffected}
@@ -251,17 +279,23 @@ export function DowntimeTab({
             )}
           </div>
 
-          {/* Category + Part — side by side */}
+          {/* Downtime code + Part — side by side */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Category *</label>
+              <label className="text-xs text-gray-500 block mb-1">Downtime code *</label>
               <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as DowntimeCategory)}
+                value={selectedCodeId}
+                onChange={(e) => setSelectedCodeId(e.target.value)}
+                disabled={codesLoading}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
               >
-                {DOWNTIME_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                <option value="" disabled>
+                  {codesLoading ? "Loading…" : "Select code"}
+                </option>
+                {codes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code} — {c.label}
+                  </option>
                 ))}
               </select>
             </div>

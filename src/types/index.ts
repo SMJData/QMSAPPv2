@@ -69,14 +69,24 @@ export type DowntimeCategory =
   | "External"
   | "Scheduled";
 
+export interface DowntimeCode {
+  id: string;
+  code: string;
+  label: string;
+  category: DowntimeCategory;
+}
+
 export interface DowntimeEvent {
   id?: string;
-  jobNum: string;            // ← added
-  jobDescription: string;    // ← added
+  jobNum: string;
+  jobDescription: string;
   shift: ShiftKey;
   shiftDate: string;
   line: string;
-  category: DowntimeCategory;
+  downtimeCodeId: string;
+  downtimeCode: string;        // e.g. "DT-014" — denormalized for display without a join
+  downtimeCodeLabel: string;   // e.g. "Cleaning-in-place (CIP)"
+  category: DowntimeCategory;  // denormalized from the selected code, for local badge display only
   partAffected: string;
   startTime: string;
   endTime: string;
