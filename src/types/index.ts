@@ -71,11 +71,13 @@ export type DowntimeCategory =
 
 export interface DowntimeEvent {
   id?: string;
+  jobNum: string;            // ← added
+  jobDescription: string;    // ← added
   shift: ShiftKey;
   shiftDate: string;
   line: string;
   category: DowntimeCategory;
-  partAffected: string;        // ← added
+  partAffected: string;
   startTime: string;
   endTime: string;
   durationMinutes?: number;

@@ -1,8 +1,8 @@
 // src/components/DowntimeTab.tsx
 "use client";
 
-import { useState } from "react";
-import { PlusCircle, Clock, Trash2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { PlusCircle, Clock, Trash2, Search } from "lucide-react";
 import { BottomSheet } from "@/components/BottomSheet";
 import {
   DOWNTIME_CATEGORIES,
@@ -13,7 +13,7 @@ import {
   getShiftDate,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import type { DowntimeCategory, DowntimeEvent, ShiftKey } from "@/types";
+import type { DowntimeCategory, DowntimeEvent, ShiftKey, Job } from "@/types";
 import type { useOfflineQueue } from "@/lib/useOfflineQueue";
 
 interface DowntimeTabProps {
@@ -21,6 +21,8 @@ interface DowntimeTabProps {
   line: string;
   supervisorName: string;
   events: DowntimeEvent[];
+  jobs: Job[];               // ← added
+  jobsLoading: boolean;      // ← added
   onEventAdded: (event: DowntimeEvent) => void;
   onEventRemoved: (index: number) => void;
   syncOrQueue: ReturnType<typeof useOfflineQueue>["syncOrQueue"];
@@ -31,6 +33,8 @@ export function DowntimeTab({
   line,
   supervisorName,
   events,
+  jobs,
+  jobsLoading,
   onEventAdded,
   onEventRemoved,
 }: DowntimeTabProps) {
@@ -43,25 +47,45 @@ export function DowntimeTab({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Job selection
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [jobQuery, setJobQuery] = useState("");
+
   const s = SHIFTS[shift];
+
+  const filteredJobs = useMemo(() => {
+    const q = jobQuery.toLowerCase();
+    if (!q) return jobs;
+    return jobs.filter(
+      (j) =>
+        j.jobNum.includes(q) ||
+        j.description.toLowerCase().includes(q) ||
+        j.brand.toLowerCase().includes(q)
+    );
+  }, [jobs, jobQuery]);
 
   const handleOpen = () => {
     setStartTime(s.start);
     setEndTime("");
     setPartAffected(DOWNTIME_PARTS[0]);
     setDescription("");
+    setSelectedJob(null);
+    setJobQuery("");
     setError("");
     setSheetOpen(true);
   };
 
   const handleSave = async () => {
-    if (!partAffected) { setError("Select part affected"); return; }
-    if (!startTime)    { setError("Enter start time");     return; }
-    if (!endTime)      { setError("Enter end time");       return; }
+    if (!selectedJob)  { setError("Select a job");          return; }
+    if (!partAffected) { setError("Select part affected");  return; }
+    if (!startTime)    { setError("Enter start time");      return; }
+    if (!endTime)      { setError("Enter end time");        return; }
     setError("");
     setSaving(true);
 
     const event: DowntimeEvent = {
+      jobNum: selectedJob.jobNum,
+      jobDescription: selectedJob.description,
       shift,
       shiftDate: getShiftDate(shift),
       line,
@@ -74,8 +98,6 @@ export function DowntimeTab({
       supervisorName,
     };
 
-    // Local only — bundled into the full ShiftReport and sent
-    // via SummaryTab's "Submit shift report" action.
     onEventAdded(event);
     setSheetOpen(false);
     setSaving(false);
@@ -133,7 +155,7 @@ export function DowntimeTab({
                       {e.category}
                     </span>
                     <span className="text-[11px] text-gray-500 font-medium">
-                      {e.partAffected}
+                      {e.jobNum} · {e.partAffected}
                     </span>
                   </div>
                   <button onClick={() => onEventRemoved(i)} className="text-red-400 hover:text-red-600 p-1">
@@ -160,6 +182,60 @@ export function DowntimeTab({
       {/* Add downtime sheet */}
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Log downtime event">
         <div className="space-y-3">
+
+          {/* Job selection */}
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Job *</label>
+            {selectedJob ? (
+              <div className="flex items-center justify-between border border-smj-navy/30 bg-smj-navy-light rounded-xl px-3 py-2.5">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-smj-navy truncate">
+                    {selectedJob.jobNum}
+                  </div>
+                  <div className="text-xs text-gray-500 truncate">
+                    {selectedJob.description}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedJob(null)}
+                  className="text-xs text-smj-navy font-medium shrink-0 ml-2"
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="relative mb-2">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={jobQuery}
+                    onChange={(e) => setJobQuery(e.target.value)}
+                    placeholder="Search job #, product, brand…"
+                    className="w-full border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-white"
+                  />
+                </div>
+                <div className="max-h-40 overflow-y-auto border border-gray-100 rounded-xl divide-y divide-gray-100">
+                  {jobsLoading ? (
+                    <div className="p-3 text-xs text-gray-400">Loading jobs…</div>
+                  ) : filteredJobs.length === 0 ? (
+                    <div className="p-3 text-xs text-gray-400">No jobs match</div>
+                  ) : (
+                    filteredJobs.map((job) => (
+                      <button
+                        key={job.jobNum}
+                        onClick={() => setSelectedJob(job)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-gray-50"
+                      >
+                        <div className="text-sm font-semibold text-gray-800">{job.jobNum}</div>
+                        <div className="text-xs text-gray-500 truncate">{job.description}</div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Category + Part — side by side */}
           <div className="grid grid-cols-2 gap-3">

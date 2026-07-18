@@ -204,16 +204,18 @@ export default function HomePage() {
           />
         )}
         {activeTab === "downtime" && ROLE_TAB_ACCESS[role].includes("downtime") && (
-          <DowntimeTab
-            shift={shift}
-            line={line}
-            supervisorName={supervisorName}
-            events={downtimeEvents}
-            onEventAdded={handleEventAdded}
-            onEventRemoved={handleEventRemoved}
-            syncOrQueue={syncOrQueue}
-          />
-        )}
+        <DowntimeTab
+          shift={shift}
+          line={line}
+          supervisorName={supervisorName}
+          events={downtimeEvents}
+          jobs={jobs}
+          jobsLoading={jobsLoading}
+          onEventAdded={handleEventAdded}
+          onEventRemoved={handleEventRemoved}
+          syncOrQueue={syncOrQueue}
+        />
+      )}
         {activeTab === "summary" && ROLE_TAB_ACCESS[role].includes("summary") && (
           <SummaryTab
             shift={shift}
