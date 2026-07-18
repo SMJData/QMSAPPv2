@@ -24,8 +24,8 @@ const TABS: Tab[] = [
 const ROLE_TAB_ACCESS: Record<UserRole, TabKey[]> = {
   admin: ["jobs", "log", "downtime", "summary"],
   production_coordinator: ["jobs", "log", "downtime", "summary"],
-  machine_operator: ["downtime"],
-  maintenance_technician: ["downtime"],
+  machine_operator: ["jobs", "downtime"],
+  maintenance_technician: ["jobs", "downtime"],
 };
 
 interface BottomTabBarProps {

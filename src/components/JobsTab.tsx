@@ -1,12 +1,11 @@
-// JobsTab.tsx - A React component that displays a list of production jobs for a selected shift and line, with search and filtering capabilities. It allows users to select a job to view more details or log production data, and includes a refresh button to reload the job data from the server.
-
+// JobsTab.tsx
 "use client";
 
 import { useState, useMemo } from "react";
 import { Search, RefreshCw, Sun, Moon } from "lucide-react";
 import { ShiftSelector } from "@/components/ShiftSelector";
 import { JobCard } from "@/components/JobCard";
-import { PRODUCTION_LINES, SHIFTS } from "@/lib/constants";
+import { SHIFTS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Job, ShiftKey } from "@/types";
 
@@ -14,10 +13,8 @@ interface JobsTabProps {
   jobs: Job[];
   loading: boolean;
   shift: ShiftKey;
-  line: string;
   selectedJob: Job | null;
   onShiftChange: (s: ShiftKey) => void;
-  onLineChange: (l: string) => void;
   onJobSelect: (job: Job) => void;
   onRefresh: () => void;
 }
@@ -26,10 +23,8 @@ export function JobsTab({
   jobs,
   loading,
   shift,
-  line,
   selectedJob,
   onShiftChange,
-  onLineChange,
   onJobSelect,
   onRefresh,
 }: JobsTabProps) {
@@ -70,24 +65,6 @@ export function JobsTab({
             {s.label} · {s.start} – {s.end}
           </div>
         </div>
-      </div>
-
-      {/* Line selector */}
-      <div className="mb-4">
-        <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
-          Production line
-        </label>
-        <select
-          value={line}
-          onChange={(e) => onLineChange(e.target.value)}
-          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white text-gray-900"
-        >
-          {PRODUCTION_LINES.map((l) => (
-            <option key={l} value={l}>
-              {l}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Search */}

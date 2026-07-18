@@ -16,8 +16,8 @@ import { supabase } from "@/lib/supabase";
 const ROLE_TAB_ACCESS: Record<UserRole, TabKey[]> = {
   admin: ["jobs", "log", "downtime", "summary"],
   production_coordinator: ["jobs", "log", "downtime", "summary"],
-  machine_operator: ["downtime"],
-  maintenance_technician: ["downtime"],
+  machine_operator: ["jobs", "downtime"],
+  maintenance_technician: ["jobs", "downtime"],
 };
 
 export default function HomePage() {
@@ -140,7 +140,10 @@ export default function HomePage() {
 
   const handleJobSelect = (job: Job) => {
     setSelectedJob(job);
-    setActiveTab("log");
+    if (!role) return;
+    // Coordinator/admin go to Log Entry as before; operators/technicians
+    // (who don't have "log" access) go straight to Downtime instead.
+    setActiveTab(ROLE_TAB_ACCESS[role].includes("log") ? "log" : "downtime");
   };
 
   const handleLogSaved = (log: ProductionLog) => {
@@ -183,10 +186,8 @@ export default function HomePage() {
             jobs={jobs}
             loading={jobsLoading}
             shift={shift}
-            line={line}
             selectedJob={selectedJob}
             onShiftChange={setShift}
-            onLineChange={setLine}
             onJobSelect={handleJobSelect}
             onRefresh={loadJobs}
           />
@@ -204,18 +205,18 @@ export default function HomePage() {
           />
         )}
         {activeTab === "downtime" && ROLE_TAB_ACCESS[role].includes("downtime") && (
-        <DowntimeTab
-          shift={shift}
-          line={line}
-          supervisorName={supervisorName}
-          events={downtimeEvents}
-          jobs={jobs}
-          jobsLoading={jobsLoading}
-          onEventAdded={handleEventAdded}
-          onEventRemoved={handleEventRemoved}
-          syncOrQueue={syncOrQueue}
-        />
-      )}
+          <DowntimeTab
+            shift={shift}
+            line={line}
+            supervisorName={supervisorName}
+            events={downtimeEvents}
+            jobs={jobs}
+            jobsLoading={jobsLoading}
+            onEventAdded={handleEventAdded}
+            onEventRemoved={handleEventRemoved}
+            syncOrQueue={syncOrQueue}
+          />
+        )}
         {activeTab === "summary" && ROLE_TAB_ACCESS[role].includes("summary") && (
           <SummaryTab
             shift={shift}
