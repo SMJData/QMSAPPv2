@@ -21,8 +21,9 @@ interface DowntimeTabProps {
   line: string;
   supervisorName: string;
   events: DowntimeEvent[];
-  jobs: Job[];               // ← added
-  jobsLoading: boolean;      // ← added
+  jobs: Job[];
+  jobsLoading: boolean;
+  preselectedJob: Job | null; // ← added — carried over from Jobs tab selection
   onEventAdded: (event: DowntimeEvent) => void;
   onEventRemoved: (index: number) => void;
   syncOrQueue: ReturnType<typeof useOfflineQueue>["syncOrQueue"];
@@ -35,6 +36,7 @@ export function DowntimeTab({
   events,
   jobs,
   jobsLoading,
+  preselectedJob,
   onEventAdded,
   onEventRemoved,
 }: DowntimeTabProps) {
@@ -48,7 +50,7 @@ export function DowntimeTab({
   const [error, setError] = useState("");
 
   // Job selection
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(preselectedJob ?? null);
   const [jobQuery, setJobQuery] = useState("");
 
   const s = SHIFTS[shift];
@@ -69,7 +71,7 @@ export function DowntimeTab({
     setEndTime("");
     setPartAffected(DOWNTIME_PARTS[0]);
     setDescription("");
-    setSelectedJob(null);
+    setSelectedJob(preselectedJob ?? null); // ← pre-fill from Jobs tab selection each time sheet opens
     setJobQuery("");
     setError("");
     setSheetOpen(true);
@@ -112,6 +114,18 @@ export function DowntimeTab({
         <Clock size={14} className="shrink-0" />
         <span>{s.label} · {s.start} – {s.end}</span>
       </div>
+
+      {/* Pre-selected job banner — shows the job carried over from Jobs tab */}
+      {preselectedJob && (
+        <div className="flex items-center gap-2.5 bg-smj-navy-light border border-smj-navy/20 rounded-xl px-3.5 py-2.5 mb-4">
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] text-smj-navy/60">Selected job</div>
+            <div className="text-sm font-semibold text-smj-navy truncate">
+              {preselectedJob.jobNum} · {preselectedJob.description}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary chip */}
       {events.length > 0 && (

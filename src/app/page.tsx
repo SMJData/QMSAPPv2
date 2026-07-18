@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { TopBar } from "@/components/TopBar";
 import { BottomTabBar, type TabKey, type UserRole } from "@/components/BottomTabBar";
+import { BottomSheet } from "@/components/BottomSheet";
 import { JobsTab } from "@/components/JobsTab";
 import { LogEntryTab } from "@/components/LogEntryTab";
 import { DowntimeTab } from "@/components/DowntimeTab";
@@ -37,6 +38,9 @@ export default function HomePage() {
   const [jobsLoading, setJobsLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
+  // Coordinator/admin job-action choice prompt (Log Quantity vs Log Downtime)
+  const [showJobActionSheet, setShowJobActionSheet] = useState(false);
+
   // Session data
   const [productionLogs, setProductionLogs] = useState<ProductionLog[]>([]);
   const [downtimeEvents, setDowntimeEvents] = useState<DowntimeEvent[]>([]);
@@ -64,7 +68,6 @@ export default function HomePage() {
       const resolvedRole = (data?.role ?? null) as UserRole | null;
       setRole(resolvedRole);
 
-      // Land restricted roles on a tab they're actually allowed to see
       if (resolvedRole && !ROLE_TAB_ACCESS[resolvedRole]?.includes("jobs")) {
         setActiveTab(ROLE_TAB_ACCESS[resolvedRole]?.[0] ?? "downtime");
       }
@@ -75,8 +78,7 @@ export default function HomePage() {
   }, []);
 
   // Guard: whenever activeTab changes, redirect away if the current
-  // role isn't allowed to view it (defensive — covers any programmatic
-  // setActiveTab call, e.g. handleLogSaved sending someone to "summary")
+  // role isn't allowed to view it
   useEffect(() => {
     if (!role) return;
     if (!ROLE_TAB_ACCESS[role]?.includes(activeTab)) {
@@ -141,9 +143,24 @@ export default function HomePage() {
   const handleJobSelect = (job: Job) => {
     setSelectedJob(job);
     if (!role) return;
-    // Coordinator/admin go to Log Entry as before; operators/technicians
-    // (who don't have "log" access) go straight to Downtime instead.
-    setActiveTab(ROLE_TAB_ACCESS[role].includes("log") ? "log" : "downtime");
+
+    const canLog = ROLE_TAB_ACCESS[role].includes("log");
+    const canDowntime = ROLE_TAB_ACCESS[role].includes("downtime");
+
+    if (canLog && canDowntime) {
+      // Coordinator/admin — ask which action they want instead of auto-routing
+      setShowJobActionSheet(true);
+    } else if (canDowntime) {
+      // Operator/technician — straight to Downtime, job carried over
+      setActiveTab("downtime");
+    } else if (canLog) {
+      setActiveTab("log");
+    }
+  };
+
+  const handleJobAction = (action: "log" | "downtime") => {
+    setShowJobActionSheet(false);
+    setActiveTab(action);
   };
 
   const handleLogSaved = (log: ProductionLog) => {
@@ -212,6 +229,7 @@ export default function HomePage() {
             events={downtimeEvents}
             jobs={jobs}
             jobsLoading={jobsLoading}
+            preselectedJob={selectedJob}
             onEventAdded={handleEventAdded}
             onEventRemoved={handleEventRemoved}
             syncOrQueue={syncOrQueue}
@@ -229,6 +247,31 @@ export default function HomePage() {
           />
         )}
       </div>
+
+      {/* Coordinator/admin job-action choice */}
+      <BottomSheet
+        open={showJobActionSheet}
+        onClose={() => setShowJobActionSheet(false)}
+        title={selectedJob ? selectedJob.jobNum : "Select action"}
+      >
+        <div className="space-y-3">
+          {selectedJob && (
+            <p className="text-sm text-gray-500">{selectedJob.description}</p>
+          )}
+          <button
+            onClick={() => handleJobAction("log")}
+            className="w-full bg-smj-navy text-white rounded-xl py-3 text-sm font-semibold"
+          >
+            Log Quantity
+          </button>
+          <button
+            onClick={() => handleJobAction("downtime")}
+            className="w-full border-2 border-smj-navy text-smj-navy rounded-xl py-3 text-sm font-semibold"
+          >
+            Log Downtime
+          </button>
+        </div>
+      </BottomSheet>
 
       <BottomTabBar active={activeTab} onChange={setActiveTab} role={role} />
     </div>
