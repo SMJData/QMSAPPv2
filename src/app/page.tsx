@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { TopBar } from "@/components/TopBar";
-import { BottomTabBar, type TabKey } from "@/components/BottomTabBar";
+import { BottomTabBar, type TabKey, type UserRole } from "@/components/BottomTabBar";
 import { JobsTab } from "@/components/JobsTab";
 import { LogEntryTab } from "@/components/LogEntryTab";
 import { DowntimeTab } from "@/components/DowntimeTab";
@@ -10,9 +10,22 @@ import { SummaryTab } from "@/components/SummaryTab";
 import type { Job, ShiftKey, ProductionLog, DowntimeEvent } from "@/types";
 import { PRODUCTION_LINES } from "@/lib/constants";
 import { useOfflineQueue, getCachedJobs, setCachedJobs } from "@/lib/useOfflineQueue";
+import { supabase } from "@/lib/supabase";
+
+// Central access map — keep in sync with the one in BottomTabBar.tsx
+const ROLE_TAB_ACCESS: Record<UserRole, TabKey[]> = {
+  admin: ["jobs", "log", "downtime", "summary"],
+  production_coordinator: ["jobs", "log", "downtime", "summary"],
+  machine_operator: ["downtime"],
+  maintenance_technician: ["downtime"],
+};
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<TabKey>("jobs");
+
+  // Role state
+  const [role, setRole] = useState<UserRole | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
 
   // Shift state
   const [shift, setShift] = useState<ShiftKey>("day");
@@ -34,6 +47,43 @@ export default function HomePage() {
   // Prevent duplicate syncs if online event fires multiple times rapidly
   const syncingJobsRef = useRef(false);
 
+  // ─── Load current user's role ──────────────────────────────
+  useEffect(() => {
+    async function loadRole() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setRoleLoading(false);
+        return;
+      }
+      const { data } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      const resolvedRole = (data?.role ?? null) as UserRole | null;
+      setRole(resolvedRole);
+
+      // Land restricted roles on a tab they're actually allowed to see
+      if (resolvedRole && !ROLE_TAB_ACCESS[resolvedRole]?.includes("jobs")) {
+        setActiveTab(ROLE_TAB_ACCESS[resolvedRole]?.[0] ?? "downtime");
+      }
+
+      setRoleLoading(false);
+    }
+    loadRole();
+  }, []);
+
+  // Guard: whenever activeTab changes, redirect away if the current
+  // role isn't allowed to view it (defensive — covers any programmatic
+  // setActiveTab call, e.g. handleLogSaved sending someone to "summary")
+  useEffect(() => {
+    if (!role) return;
+    if (!ROLE_TAB_ACCESS[role]?.includes(activeTab)) {
+      setActiveTab(ROLE_TAB_ACCESS[role]?.[0] ?? "downtime");
+    }
+  }, [role, activeTab]);
+
   // ─── Load jobs from job_master ────────────────────────────
   const loadJobs = useCallback(async () => {
     setJobsLoading(true);
@@ -51,19 +101,13 @@ export default function HomePage() {
   }, []);
 
   // ─── Full sync: Epicor → job_master → local state ─────────
-  // Only runs when WiFi is detected and a sync is not already in flight
   const syncOnConnect = useCallback(async () => {
     if (syncingJobsRef.current) return;
     syncingJobsRef.current = true;
 
     try {
-      // 1. Drain any records queued while offline
       await drain();
-
-      // 2. Pull fresh jobs from Epicor into job_master
       await fetch("/api/sync-jobs");
-
-      // 3. Refresh local state from job_master
       await loadJobs();
     } catch {
       console.error("Sync on connect failed");
@@ -75,14 +119,13 @@ export default function HomePage() {
   // ─── Initial load ─────────────────────────────────────────
   useEffect(() => {
     if (navigator.onLine) {
-      syncOnConnect(); // online at launch — sync immediately
+      syncOnConnect();
     } else {
-      loadJobs();      // offline at launch — load from cache only
+      loadJobs();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── React to WiFi reconnection ───────────────────────────
-  // This is the only trigger for sync — purely event-driven
   useEffect(() => {
     const handleOnline = () => syncOnConnect();
     window.addEventListener("online", handleOnline);
@@ -122,12 +165,20 @@ export default function HomePage() {
     }, 3000);
   };
 
+  if (roleLoading) {
+    return <div className="app-shell shadow-xl flex items-center justify-center">Loading…</div>;
+  }
+
+  if (!role) {
+    return <div className="app-shell shadow-xl flex items-center justify-center">Unable to load user profile.</div>;
+  }
+
   return (
     <div className="app-shell shadow-xl">
       <TopBar shift={shift} pendingSync={pendingSync} syncing={syncing} />
 
       <div className="content-area">
-        {activeTab === "jobs" && (
+        {activeTab === "jobs" && ROLE_TAB_ACCESS[role].includes("jobs") && (
           <JobsTab
             jobs={jobs}
             loading={jobsLoading}
@@ -140,7 +191,7 @@ export default function HomePage() {
             onRefresh={loadJobs}
           />
         )}
-        {activeTab === "log" && (
+        {activeTab === "log" && ROLE_TAB_ACCESS[role].includes("log") && (
           <LogEntryTab
             selectedJob={selectedJob}
             shift={shift}
@@ -152,7 +203,7 @@ export default function HomePage() {
             syncOrQueue={syncOrQueue}
           />
         )}
-        {activeTab === "downtime" && (
+        {activeTab === "downtime" && ROLE_TAB_ACCESS[role].includes("downtime") && (
           <DowntimeTab
             shift={shift}
             line={line}
@@ -163,7 +214,7 @@ export default function HomePage() {
             syncOrQueue={syncOrQueue}
           />
         )}
-        {activeTab === "summary" && (
+        {activeTab === "summary" && ROLE_TAB_ACCESS[role].includes("summary") && (
           <SummaryTab
             shift={shift}
             line={line}
@@ -176,7 +227,7 @@ export default function HomePage() {
         )}
       </div>
 
-      <BottomTabBar active={activeTab} onChange={setActiveTab} />
+      <BottomTabBar active={activeTab} onChange={setActiveTab} role={role} />
     </div>
   );
 }

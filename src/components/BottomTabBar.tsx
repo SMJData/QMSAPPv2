@@ -1,11 +1,11 @@
-// BottomTabBar.tsx - A React component that renders a bottom tab bar with icons and labels for navigating between different sections of the production logger application, such as Jobs, Log Entry, Downtime, and Summary. The active tab is highlighted, and clicking on a tab triggers a callback to change the active section.
-
+// BottomTabBar.tsx
 "use client";
 
 import { ClipboardList, FilePen, PauseCircle, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type TabKey = "jobs" | "log" | "downtime" | "summary";
+export type UserRole = "admin" | "production_coordinator" | "machine_operator" | "maintenance_technician";
 
 interface Tab {
   key: TabKey;
@@ -20,16 +20,27 @@ const TABS: Tab[] = [
   { key: "summary", label: "Summary", icon: <BarChart3 size={20} /> },
 ];
 
+// Central role → tab visibility map
+const ROLE_TAB_ACCESS: Record<UserRole, TabKey[]> = {
+  admin: ["jobs", "log", "downtime", "summary"],
+  production_coordinator: ["jobs", "log", "downtime", "summary"],
+  machine_operator: ["downtime"],
+  maintenance_technician: ["downtime"],
+};
+
 interface BottomTabBarProps {
   active: TabKey;
   onChange: (tab: TabKey) => void;
+  role: UserRole;
 }
 
-export function BottomTabBar({ active, onChange }: BottomTabBarProps) {
+export function BottomTabBar({ active, onChange, role }: BottomTabBarProps) {
+  const visibleTabs = TABS.filter((tab) => ROLE_TAB_ACCESS[role]?.includes(tab.key));
+
   return (
     <div className="tab-bar bg-white border-t border-gray-200 pb-safe">
       <div className="flex">
-        {TABS.map((tab) => (
+        {visibleTabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => onChange(tab.key)}
