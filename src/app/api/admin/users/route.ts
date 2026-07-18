@@ -29,24 +29,33 @@ export async function POST(req: NextRequest) {
 
   const supabaseAdmin = getSupabaseAdmin();
 
+  // Trigger reads full_name + role from user_metadata and inserts the profile row
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email,
     password: tempPassword,
     email_confirm: true,
-    user_metadata: { full_name: fullName },
+    user_metadata: { full_name: fullName, role },
   });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const { error: roleError } = await supabaseAdmin
+  // Safety net: confirm the trigger actually created the profile row.
+  // If it didn't (trigger missing/failed), roll back the auth user
+  // instead of leaving an orphaned account like before.
+  const { data: profile, error: profileError } = await supabaseAdmin
     .from("profiles")
-    .update({ role })
-    .eq("id", data.user.id);
+    .select("id")
+    .eq("id", data.user.id)
+    .single();
 
-  if (roleError) {
-    return NextResponse.json({ error: roleError.message }, { status: 500 });
+  if (profileError || !profile) {
+    await supabaseAdmin.auth.admin.deleteUser(data.user.id);
+    return NextResponse.json(
+      { error: "Profile creation failed; user creation rolled back." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ id: data.user.id }, { status: 201 });
