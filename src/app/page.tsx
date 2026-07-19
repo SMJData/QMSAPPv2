@@ -246,7 +246,9 @@ export default function HomePage() {
             line={line}
             supervisorName={supervisorName}
             productionLogs={productionLogs}
-            downtimeEvents={downtimeEvents}
+            jobs={jobs}
+            jobsLoading={jobsLoading}
+            preselectedJob={selectedJob}
             onSubmitSuccess={handleSubmitSuccess}
             syncOrQueue={syncOrQueue}
           />
