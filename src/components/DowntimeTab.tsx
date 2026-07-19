@@ -18,7 +18,6 @@ import type { UserRole } from "@/components/BottomTabBar";
 
 interface DowntimeTabProps {
   shift: ShiftKey;
-  line: string;
   supervisorName: string;
   events: DowntimeEvent[];
   jobs: Job[];
@@ -35,7 +34,6 @@ const CAN_VIEW_REVIEW_QUEUE: UserRole[] = ["maintenance_technician", "machine_op
 
 export function DowntimeTab({
   shift,
-  line,
   supervisorName,
   events,
   jobs,
@@ -151,7 +149,6 @@ export function DowntimeTab({
       jobDescription: selectedJob.description,
       shift,
       shiftDate: getShiftDate(shift),
-      line,
       downtimeCodeId: selectedCode.id,
       downtimeCode: selectedCode.code,
       downtimeCodeLabel: selectedCode.label,
@@ -164,8 +161,6 @@ export function DowntimeTab({
       supervisorName,
     };
 
-    // Persist immediately — technician/coordinator need to see this
-    // regardless of whether/when a shift report gets submitted.
     await syncOrQueue("/api/downtime", "POST", {
       jobNum: event.jobNum,
       jobDescription: event.jobDescription,
@@ -497,7 +492,7 @@ export function DowntimeTab({
         </div>
       </BottomSheet>
 
-      {/* Review sheet — technician only (view when opened by others is blocked via canReview) */}
+      {/* Review sheet */}
       <BottomSheet open={!!reviewTarget} onClose={() => setReviewTarget(null)} title="Review downtime event">
         {reviewTarget && (
           <div className="space-y-3">

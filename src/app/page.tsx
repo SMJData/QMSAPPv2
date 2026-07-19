@@ -9,7 +9,6 @@ import { LogEntryTab } from "@/components/LogEntryTab";
 import { DowntimeTab } from "@/components/DowntimeTab";
 import { SummaryTab } from "@/components/SummaryTab";
 import type { Job, ShiftKey, ProductionLog, DowntimeEvent } from "@/types";
-import { PRODUCTION_LINES } from "@/lib/constants";
 import { useOfflineQueue, getCachedJobs, setCachedJobs } from "@/lib/useOfflineQueue";
 import { supabase } from "@/lib/supabase";
 
@@ -30,7 +29,6 @@ export default function HomePage() {
 
   // Shift state
   const [shift, setShift] = useState<ShiftKey>("day");
-  const [line, setLine] = useState<string>(PRODUCTION_LINES[0]);
 
   // Supervisor name — derived from the logged-in user's profile, not manually entered
   const [supervisorName, setSupervisorName] = useState("");
@@ -218,7 +216,6 @@ export default function HomePage() {
           <LogEntryTab
             selectedJob={selectedJob}
             shift={shift}
-            line={line}
             supervisorName={supervisorName}
             onGoToJobs={() => setActiveTab("jobs")}
             onLogSaved={handleLogSaved}
@@ -228,7 +225,6 @@ export default function HomePage() {
         {activeTab === "downtime" && ROLE_TAB_ACCESS[role].includes("downtime") && (
           <DowntimeTab
             shift={shift}
-            line={line}
             supervisorName={supervisorName}
             events={downtimeEvents}
             jobs={jobs}
@@ -243,7 +239,6 @@ export default function HomePage() {
         {activeTab === "summary" && ROLE_TAB_ACCESS[role].includes("summary") && (
           <SummaryTab
             shift={shift}
-            line={line}
             supervisorName={supervisorName}
             productionLogs={productionLogs}
             jobs={jobs}

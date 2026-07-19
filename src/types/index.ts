@@ -55,7 +55,6 @@ export interface ProductionLog {
   brand: string;
   shift: ShiftKey;
   shiftDate: string;
-  line: string;
   casesProduced: number;
   casesRejected: number;
   notes: string;
@@ -82,7 +81,6 @@ export interface DowntimeEvent {
   jobDescription: string;
   shift: ShiftKey;
   shiftDate: string;
-  line: string;
   downtimeCodeId: string;
   downtimeCode: string;
   downtimeCodeLabel: string;
@@ -119,7 +117,6 @@ export interface ShiftReport {
   id?: string;
   shift: ShiftKey;
   shiftDate: string;
-  line: string;
   supervisorName: string;
   productionLogs: ProductionLog[];
   downtimeEvents: DowntimeEvent[];

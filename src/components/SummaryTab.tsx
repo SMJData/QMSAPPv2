@@ -11,7 +11,6 @@ import { format } from "date-fns";
 
 interface SummaryTabProps {
   shift: ShiftKey;
-  line: string;
   supervisorName: string;
   productionLogs: ProductionLog[];
   jobs: Job[];
@@ -23,7 +22,6 @@ interface SummaryTabProps {
 
 export function SummaryTab({
   shift,
-  line,
   supervisorName,
   productionLogs,
   jobs,
@@ -111,7 +109,6 @@ export function SummaryTab({
     const report: ShiftReport = {
       shift,
       shiftDate: getShiftDate(shift),
-      line,
       supervisorName,
       productionLogs: jobLogs,
       downtimeEvents: [], // DB-linked separately by /api/submit; not re-sent
@@ -148,7 +145,7 @@ export function SummaryTab({
           {s.label} · {format(new Date(), "d MMM yyyy")}
         </p>
         <p className="text-sm text-gray-400 mb-3">
-          {totalProduced.toLocaleString()} cases · {line}
+          {totalProduced.toLocaleString()} cases
         </p>
         {submittedOffline && (
           <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 max-w-xs">
@@ -246,7 +243,6 @@ export function SummaryTab({
           <div className="bg-gray-50 rounded-xl border border-gray-200 divide-y divide-gray-200 mb-4">
             <SumRow label="Shift"      value={s.label} />
             <SumRow label="Window"     value={`${s.start} – ${s.end}`} />
-            <SumRow label="Line"       value={line} />
             <SumRow label="Supervisor" value={supervisorName || "—"} />
             {efficiency && <SumRow label="Yield rate" value={`${efficiency}%`} />}
           </div>

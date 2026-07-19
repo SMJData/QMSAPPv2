@@ -10,7 +10,6 @@ import type { useOfflineQueue } from "@/lib/useOfflineQueue";
 interface LogEntryTabProps {
   selectedJob: Job | null;
   shift: ShiftKey;
-  line: string;
   supervisorName: string;
   onGoToJobs: () => void;
   onLogSaved: (log: ProductionLog) => void;
@@ -20,7 +19,6 @@ interface LogEntryTabProps {
 export function LogEntryTab({
   selectedJob,
   shift,
-  line,
   supervisorName,
   onGoToJobs,
   onLogSaved,
@@ -67,7 +65,6 @@ export function LogEntryTab({
       brand: selectedJob.brand,
       shift,
       shiftDate: getShiftDate(shift),
-      line,
       casesProduced: parseInt(casesProduced),
       casesRejected: parseInt(casesRejected) || 0,
       notes,

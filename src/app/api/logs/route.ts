@@ -1,5 +1,5 @@
 // src/app/api/logs/route.ts
-// NOTE: Individual log POSTs are now handled by /api/submit.
+// NOTE: Individual log POSTs are handled by /api/submit.
 // This route is read-only — used for the summary/reporting view.
 
 import { NextRequest, NextResponse } from "next/server";
@@ -9,7 +9,6 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const shiftDate = searchParams.get("shiftDate");
   const shift     = searchParams.get("shift");
-  const line      = searchParams.get("line");
 
   let query = supabase
     .from("shift_reports")
@@ -20,7 +19,6 @@ export async function GET(req: NextRequest) {
       brand,
       shift,
       shift_date,
-      line,
       supervisor_name,
       cases_produced,
       cases_rejected,
@@ -30,12 +28,14 @@ export async function GET(req: NextRequest) {
       created_at,
       downtime_events (
         id,
-        category,
         part_affected,
         start_time,
         end_time,
         duration_minutes,
-        description
+        description,
+        status,
+        corrective_action,
+        downtime_codes ( code, label, category )
       )
     `)
     .order("shift_date", { ascending: false })
@@ -43,7 +43,6 @@ export async function GET(req: NextRequest) {
 
   if (shiftDate) query = query.eq("shift_date", shiftDate);
   if (shift)     query = query.eq("shift", shift);
-  if (line)      query = query.eq("line", line);
 
   const { data, error } = await query;
 
