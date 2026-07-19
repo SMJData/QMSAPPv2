@@ -49,7 +49,7 @@ export function SummaryTab({
       return;
     }
     if (!supervisorName.trim()) {
-      setError("Enter supervisor name in Log Entry first.");
+      setError("Unable to identify supervisor — please sign out and back in.");
       return;
     }
     setError("");

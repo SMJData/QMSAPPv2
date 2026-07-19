@@ -31,6 +31,8 @@ export default function HomePage() {
   // Shift state
   const [shift, setShift] = useState<ShiftKey>("day");
   const [line, setLine] = useState<string>(PRODUCTION_LINES[0]);
+
+  // Supervisor name — derived from the logged-in user's profile, not manually entered
   const [supervisorName, setSupervisorName] = useState("");
 
   // Job state — seed from cache immediately so UI isn't blank offline
@@ -51,7 +53,7 @@ export default function HomePage() {
   // Prevent duplicate syncs if online event fires multiple times rapidly
   const syncingJobsRef = useRef(false);
 
-  // ─── Load current user's role ──────────────────────────────
+  // ─── Load current user's role + name ───────────────────────
   useEffect(() => {
     async function loadRole() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -61,13 +63,15 @@ export default function HomePage() {
       }
       const { data } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, full_name")
         .eq("id", user.id)
         .single();
 
       const resolvedRole = (data?.role ?? null) as UserRole | null;
       setRole(resolvedRole);
+      setSupervisorName(data?.full_name ?? "");
 
+      // Land restricted roles on a tab they're actually allowed to see
       if (resolvedRole && !ROLE_TAB_ACCESS[resolvedRole]?.includes("jobs")) {
         setActiveTab(ROLE_TAB_ACCESS[resolvedRole]?.[0] ?? "downtime");
       }
@@ -78,7 +82,8 @@ export default function HomePage() {
   }, []);
 
   // Guard: whenever activeTab changes, redirect away if the current
-  // role isn't allowed to view it
+  // role isn't allowed to view it (defensive — covers any programmatic
+  // setActiveTab call, e.g. handleLogSaved sending someone to "summary")
   useEffect(() => {
     if (!role) return;
     if (!ROLE_TAB_ACCESS[role]?.includes(activeTab)) {
@@ -215,7 +220,6 @@ export default function HomePage() {
             shift={shift}
             line={line}
             supervisorName={supervisorName}
-            onSupervisorChange={setSupervisorName}
             onGoToJobs={() => setActiveTab("jobs")}
             onLogSaved={handleLogSaved}
             syncOrQueue={syncOrQueue}

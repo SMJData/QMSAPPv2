@@ -12,7 +12,6 @@ interface LogEntryTabProps {
   shift: ShiftKey;
   line: string;
   supervisorName: string;
-  onSupervisorChange: (name: string) => void;
   onGoToJobs: () => void;
   onLogSaved: (log: ProductionLog) => void;
   syncOrQueue: ReturnType<typeof useOfflineQueue>["syncOrQueue"];
@@ -23,7 +22,6 @@ export function LogEntryTab({
   shift,
   line,
   supervisorName,
-  onSupervisorChange,
   onGoToJobs,
   onLogSaved,
   syncOrQueue,
@@ -57,10 +55,6 @@ export function LogEntryTab({
   const handleSave = async () => {
     if (!casesProduced || parseInt(casesProduced) <= 0) {
       setError("Enter cases produced");
-      return;
-    }
-    if (!supervisorName.trim()) {
-      setError("Enter supervisor name");
       return;
     }
     setError("");
@@ -114,20 +108,6 @@ export function LogEntryTab({
       <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 mb-4 text-sm text-gray-600">
         <Clock size={14} className="shrink-0" />
         <span>{s.label} · {s.start} – {s.end}</span>
-      </div>
-
-      {/* Supervisor */}
-      <div className="mb-4">
-        <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
-          Supervisor name
-        </label>
-        <input
-          type="text"
-          value={supervisorName}
-          onChange={(e) => onSupervisorChange(e.target.value)}
-          placeholder="Enter your name"
-          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
-        />
       </div>
 
       {/* Quantities */}
