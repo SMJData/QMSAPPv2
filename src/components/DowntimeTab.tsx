@@ -1,8 +1,8 @@
 // src/components/DowntimeTab.tsx
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { PlusCircle, Clock, Trash2, Search } from "lucide-react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { PlusCircle, Clock, Trash2, Search, ClipboardCheck, ChevronRight } from "lucide-react";
 import { BottomSheet } from "@/components/BottomSheet";
 import {
   DOWNTIME_PARTS,
@@ -12,8 +12,9 @@ import {
   getShiftDate,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import type { DowntimeCategory, DowntimeEvent, DowntimeCode, ShiftKey, Job } from "@/types";
+import type { DowntimeCategory, DowntimeEvent, DowntimeCode, OpenDowntimeEvent, ShiftKey, Job } from "@/types";
 import type { useOfflineQueue } from "@/lib/useOfflineQueue";
+import type { UserRole } from "@/components/BottomTabBar";
 
 interface DowntimeTabProps {
   shift: ShiftKey;
@@ -23,10 +24,14 @@ interface DowntimeTabProps {
   jobs: Job[];
   jobsLoading: boolean;
   preselectedJob: Job | null;
+  role: UserRole;
   onEventAdded: (event: DowntimeEvent) => void;
   onEventRemoved: (index: number) => void;
   syncOrQueue: ReturnType<typeof useOfflineQueue>["syncOrQueue"];
 }
+
+const CAN_REVIEW: UserRole[] = ["maintenance_technician", "admin"];
+const CAN_VIEW_REVIEW_QUEUE: UserRole[] = ["maintenance_technician", "machine_operator", "admin", "production_coordinator"];
 
 export function DowntimeTab({
   shift,
@@ -36,8 +41,10 @@ export function DowntimeTab({
   jobs,
   jobsLoading,
   preselectedJob,
+  role,
   onEventAdded,
   onEventRemoved,
+  syncOrQueue,
 }: DowntimeTabProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -57,6 +64,15 @@ export function DowntimeTab({
   const [selectedJob, setSelectedJob] = useState<Job | null>(preselectedJob ?? null);
   const [jobQuery, setJobQuery] = useState("");
 
+  // Review queue (technician + read-only for others)
+  const [openEvents, setOpenEvents] = useState<OpenDowntimeEvent[]>([]);
+  const [openEventsLoading, setOpenEventsLoading] = useState(true);
+  const [reviewTarget, setReviewTarget] = useState<OpenDowntimeEvent | null>(null);
+  const [reviewCodeId, setReviewCodeId] = useState("");
+  const [correctiveAction, setCorrectiveAction] = useState("");
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+
   const s = SHIFTS[shift];
 
   // Load downtime codes once on mount
@@ -75,6 +91,26 @@ export function DowntimeTab({
     }
     loadCodes();
   }, []);
+
+  // Load open (unreviewed) downtime events
+  const loadOpenEvents = useCallback(async () => {
+    setOpenEventsLoading(true);
+    try {
+      const res = await fetch("/api/downtime/open");
+      const data = await res.json();
+      setOpenEvents(data.events ?? []);
+    } catch {
+      console.error("Failed to load open downtime events");
+    } finally {
+      setOpenEventsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (CAN_VIEW_REVIEW_QUEUE.includes(role)) {
+      loadOpenEvents();
+    }
+  }, [role, loadOpenEvents]);
 
   const filteredJobs = useMemo(() => {
     const q = jobQuery.toLowerCase();
@@ -128,12 +164,68 @@ export function DowntimeTab({
       supervisorName,
     };
 
+    // Persist immediately — technician/coordinator need to see this
+    // regardless of whether/when a shift report gets submitted.
+    await syncOrQueue("/api/downtime", "POST", {
+      jobNum: event.jobNum,
+      jobDescription: event.jobDescription,
+      shift: event.shift,
+      shiftDate: event.shiftDate,
+      downtimeCodeId: event.downtimeCodeId,
+      partAffected: event.partAffected,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      description: event.description,
+      supervisorName: event.supervisorName,
+    });
+
     onEventAdded(event);
     setSheetOpen(false);
     setSaving(false);
+    loadOpenEvents();
+  };
+
+  const openReview = (evt: OpenDowntimeEvent) => {
+    setReviewTarget(evt);
+    setReviewCodeId(evt.downtime_code_id);
+    setCorrectiveAction(evt.corrective_action ?? "");
+    setReviewError("");
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewTarget) return;
+    if (!correctiveAction.trim()) {
+      setReviewError("Corrective action is required");
+      return;
+    }
+    setReviewSaving(true);
+    setReviewError("");
+
+    try {
+      const res = await fetch(`/api/downtime/${reviewTarget.id}/verify`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          correctiveAction,
+          downtimeCodeId: reviewCodeId !== reviewTarget.downtime_code_id ? reviewCodeId : undefined,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setReviewError(data.error ?? "Failed to save review");
+        return;
+      }
+      setReviewTarget(null);
+      loadOpenEvents();
+    } catch {
+      setReviewError("Network error — try again");
+    } finally {
+      setReviewSaving(false);
+    }
   };
 
   const totalMins = events.reduce((a, e) => a + (e.durationMinutes ?? 0), 0);
+  const canReview = CAN_REVIEW.includes(role);
 
   return (
     <div className="page-enter px-4 pt-4">
@@ -176,14 +268,14 @@ export function DowntimeTab({
         Log downtime event
       </button>
 
-      {/* Event list */}
+      {/* Event list (this session) */}
       {events.length === 0 ? (
         <div className="text-center py-10 text-gray-400">
           <Clock size={36} className="mx-auto mb-2 opacity-30" />
           <p className="text-sm">No downtime events logged</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 mb-6">
           {events.map((e, i) => {
             const style = DOWNTIME_CATEGORY_STYLES[e.category as DowntimeCategory] ?? {
               bg: "bg-gray-100",
@@ -221,27 +313,72 @@ export function DowntimeTab({
         </div>
       )}
 
+      {/* Review queue — technician (editable) + operator/coordinator/admin (read-only) */}
+      {CAN_VIEW_REVIEW_QUEUE.includes(role) && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <ClipboardCheck size={14} className="text-gray-400" />
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+              Awaiting review {openEvents.length > 0 && `(${openEvents.length})`}
+            </span>
+          </div>
+
+          {openEventsLoading ? (
+            <div className="text-xs text-gray-400 py-4 text-center">Loading…</div>
+          ) : openEvents.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <ClipboardCheck size={28} className="mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Nothing awaiting review</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {openEvents.map((evt) => {
+                const style = evt.downtime_codes
+                  ? DOWNTIME_CATEGORY_STYLES[evt.downtime_codes.category] ?? { bg: "bg-gray-100", text: "text-gray-700" }
+                  : { bg: "bg-gray-100", text: "text-gray-700" };
+                return (
+                  <button
+                    key={evt.id}
+                    onClick={() => canReview && openReview(evt)}
+                    disabled={!canReview}
+                    className={cn(
+                      "w-full text-left border border-gray-200 rounded-xl p-3 bg-white flex items-center justify-between gap-2",
+                      canReview && "hover:bg-gray-50"
+                    )}
+                  >
+                    <div className="min-w-0">
+                      <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit inline-block mb-1", style.bg, style.text)}>
+                        {evt.downtime_codes ? `${evt.downtime_codes.code} — ${evt.downtime_codes.label}` : "Unknown code"}
+                      </span>
+                      <div className="text-sm font-semibold text-gray-800 truncate">
+                        {evt.job_num} · {evt.part_affected}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {evt.start_time} – {evt.end_time ?? "—"}
+                        {evt.duration_minutes != null && ` (${evt.duration_minutes} min)`}
+                      </div>
+                    </div>
+                    {canReview && <ChevronRight size={16} className="text-gray-300 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Add downtime sheet */}
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Log downtime event">
         <div className="space-y-3">
-
-          {/* Job selection */}
           <div>
             <label className="text-xs text-gray-500 block mb-1">Job *</label>
             {selectedJob ? (
               <div className="flex items-center justify-between border border-smj-navy/30 bg-smj-navy-light rounded-xl px-3 py-2.5">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-smj-navy truncate">
-                    {selectedJob.jobNum}
-                  </div>
-                  <div className="text-xs text-gray-500 truncate">
-                    {selectedJob.description}
-                  </div>
+                  <div className="text-sm font-semibold text-smj-navy truncate">{selectedJob.jobNum}</div>
+                  <div className="text-xs text-gray-500 truncate">{selectedJob.description}</div>
                 </div>
-                <button
-                  onClick={() => setSelectedJob(null)}
-                  className="text-xs text-smj-navy font-medium shrink-0 ml-2"
-                >
+                <button onClick={() => setSelectedJob(null)} className="text-xs text-smj-navy font-medium shrink-0 ml-2">
                   Change
                 </button>
               </div>
@@ -279,7 +416,6 @@ export function DowntimeTab({
             )}
           </div>
 
-          {/* Downtime code + Part — side by side */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 block mb-1">Downtime code *</label>
@@ -289,13 +425,9 @@ export function DowntimeTab({
                 disabled={codesLoading}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
               >
-                <option value="" disabled>
-                  {codesLoading ? "Loading…" : "Select code"}
-                </option>
+                <option value="" disabled>{codesLoading ? "Loading…" : "Select code"}</option>
                 {codes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.code} — {c.label}
-                  </option>
+                  <option key={c.id} value={c.id}>{c.code} — {c.label}</option>
                 ))}
               </select>
             </div>
@@ -313,7 +445,6 @@ export function DowntimeTab({
             </div>
           </div>
 
-          {/* Times */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 block mb-1">Start time *</label>
@@ -335,7 +466,6 @@ export function DowntimeTab({
             </div>
           </div>
 
-          {/* Description */}
           <div>
             <label className="text-xs text-gray-500 block mb-1">Description</label>
             <input
@@ -348,9 +478,7 @@ export function DowntimeTab({
           </div>
 
           {error && (
-            <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-              {error}
-            </p>
+            <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>
           )}
 
           <button
@@ -367,6 +495,60 @@ export function DowntimeTab({
             Cancel
           </button>
         </div>
+      </BottomSheet>
+
+      {/* Review sheet — technician only (view when opened by others is blocked via canReview) */}
+      <BottomSheet open={!!reviewTarget} onClose={() => setReviewTarget(null)} title="Review downtime event">
+        {reviewTarget && (
+          <div className="space-y-3">
+            <div className="text-sm">
+              <div className="font-semibold text-gray-800">{reviewTarget.job_num}</div>
+              <div className="text-gray-500 text-xs">{reviewTarget.job_description}</div>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Downtime code</label>
+              <select
+                value={reviewCodeId}
+                onChange={(e) => setReviewCodeId(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+              >
+                {codes.map((c) => (
+                  <option key={c.id} value={c.id}>{c.code} — {c.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Corrective action *</label>
+              <textarea
+                value={correctiveAction}
+                onChange={(e) => setCorrectiveAction(e.target.value)}
+                placeholder="What was done to resolve this…"
+                rows={3}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+              />
+            </div>
+
+            {reviewError && (
+              <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2">{reviewError}</p>
+            )}
+
+            <button
+              onClick={handleSubmitReview}
+              disabled={reviewSaving}
+              className={cn("w-full bg-smj-navy text-white rounded-xl py-3 text-sm font-semibold", reviewSaving && "opacity-60")}
+            >
+              {reviewSaving ? "Saving…" : "Submit review"}
+            </button>
+            <button
+              onClick={() => setReviewTarget(null)}
+              className="w-full border-2 border-gray-200 text-gray-600 rounded-xl py-2.5 text-sm font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </BottomSheet>
     </div>
   );

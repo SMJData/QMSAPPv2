@@ -84,15 +84,35 @@ export interface DowntimeEvent {
   shiftDate: string;
   line: string;
   downtimeCodeId: string;
-  downtimeCode: string;        // e.g. "DT-014" — denormalized for display without a join
-  downtimeCodeLabel: string;   // e.g. "Cleaning-in-place (CIP)"
-  category: DowntimeCategory;  // denormalized from the selected code, for local badge display only
+  downtimeCode: string;
+  downtimeCodeLabel: string;
+  category: DowntimeCategory;
   partAffected: string;
   startTime: string;
   endTime: string;
   durationMinutes?: number;
   description: string;
   supervisorName: string;
+}
+
+// Shape returned by GET /api/downtime/open — a persisted row, joined with its code
+export interface OpenDowntimeEvent {
+  id: string;
+  job_num: string;
+  job_description: string | null;
+  shift: string | null;
+  shift_date: string | null;
+  part_affected: string;
+  start_time: string;
+  end_time: string | null;
+  duration_minutes: number | null;
+  description: string | null;
+  supervisor_name: string | null;
+  logged_at: string;
+  status: string;
+  corrective_action: string | null;
+  downtime_code_id: string;
+  downtime_codes: { code: string; label: string; category: DowntimeCategory } | null;
 }
 
 export interface ShiftReport {

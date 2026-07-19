@@ -1,31 +1,49 @@
 // src/app/api/downtime/route.ts
-// NOTE: Downtime events are now inserted as part of /api/submit (with shift_report_id FK).
-// This route handles standalone downtime queries for a given shift report.
-
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const shiftReportId = searchParams.get("shiftReportId");
+export async function POST(req: NextRequest) {
+  const body = await req.json();
 
-  if (!shiftReportId) {
-    return NextResponse.json(
-      { error: "shiftReportId query param is required" },
-      { status: 400 }
-    );
+  const {
+    jobNum,
+    jobDescription,
+    shift,
+    shiftDate,
+    downtimeCodeId,
+    partAffected,
+    startTime,
+    endTime,
+    description,
+    supervisorName,
+  } = body;
+
+  if (!jobNum || !downtimeCodeId || !partAffected || !startTime || !endTime) {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
   const { data, error } = await supabase
     .from("downtime_events")
-    .select("*")
-    .eq("shift_report_id", shiftReportId)
-    .order("start_time", { ascending: true });
+    .insert({
+      job_num: jobNum,
+      job_description: jobDescription,
+      shift,
+      shift_date: shiftDate,
+      downtime_code_id: downtimeCodeId,
+      part_affected: partAffected,
+      start_time: startTime,
+      end_time: endTime,
+      description,
+      supervisor_name: supervisorName,
+      status: "recorded",
+    })
+    .select()
+    .single();
 
   if (error) {
-    console.error("GET /api/downtime error:", error);
+    console.error("POST /api/downtime error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ events: data });
+  return NextResponse.json({ event: data }, { status: 201 });
 }

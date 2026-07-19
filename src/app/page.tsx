@@ -230,6 +230,7 @@ export default function HomePage() {
             jobs={jobs}
             jobsLoading={jobsLoading}
             preselectedJob={selectedJob}
+            role={role}
             onEventAdded={handleEventAdded}
             onEventRemoved={handleEventRemoved}
             syncOrQueue={syncOrQueue}
