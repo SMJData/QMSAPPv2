@@ -24,7 +24,6 @@ export async function POST(req: NextRequest) {
         brand,
         shift: body.shift,
         shift_date: body.shiftDate,
-        line: body.line,
         supervisor_name: body.supervisorName,
         cases_produced: body.totalCasesProduced,
         cases_rejected: body.totalCasesRejected,
