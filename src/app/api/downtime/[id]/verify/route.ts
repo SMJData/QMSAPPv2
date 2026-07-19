@@ -5,8 +5,10 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   const supabase = await supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -44,8 +46,8 @@ export async function PATCH(
   const { data, error } = await supabaseAdmin
     .from("downtime_events")
     .update(updatePayload)
-    .eq("id", params.id)
-    .eq("status", "recorded") // guard against double-verifying
+    .eq("id", id)
+    .eq("status", "recorded")
     .select()
     .single();
 
