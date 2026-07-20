@@ -1,4 +1,4 @@
-// src/app/api/jobs/route.ts
+// src/app/api/downtime/jobs/route.ts
 
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
